@@ -49,10 +49,6 @@ system.time(loss_year <- do.call(mosaic, loss_year)) # (15 min)
 ######################################################################################################
 
 loss_year <- raster("loss_year_mosaic_30m.tif") 
- 
-
-#Set extent of elevation raster to match the loss_year raster and resample to create a new low-res raster (~ 1km2)
-system.time(loss_year_1km <- resample(loss_year, list_raster[[35]], method = "ngb"))
 
 #Layerize values and create a RasterLayer per value (1:13) and sum to a 1km raster
 loss_year_1km_year <- layerize(loss_year_1km)
