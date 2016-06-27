@@ -2,21 +2,27 @@ library(magrittr)
 library(rgdal)
 
 #Open natural parks shapefile
-setwd("/Volumes/LaCie/Deforestacion/Parques Naturales")
-natural_parks <- readOGR(dsn = "Parques Naturales (2012) - SIGOT", layer="Parques Nacionales Naturales segun Categoria (2012) ") %>%
-  spTransform(CRS=CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")) %>%
-  
+setwd("~/Dropbox/BANREP/Deforestacion/Datos/UNEP")
+natural_parks <- readOGR(dsn = "WDPA_June2016_COL-shapefile", layer = "WDPA_June2016_COL-shapefile-polygons")
+
 #Remove NP that are out of continental land (Malpelo and Providencia)
-natural_parks <- subset(natural_parks, NOM_PARQUE != c("MALPELO", "OLD PROVIDENCE MC BEAN LAGOON ")) #Common subset with "[" don't work when you have NA's in the assing variable
+natural_parks <- natural_parks[!(natural_parks@data$NAME %in% c("Malpelo Fauna and Flora Sanctuary", 
+                                                                "Old Providence Mc Bean Lagoon",
+                                                                "Malpelo", "Jhonny Cay Regional Park",
+                                                                "The Peak Regional Park")), ]
 
 #Calculate distances from cell centrids the the natural parks frontiers
 natural_parks_p <- natural_parks %>%
   as("SpatialLines") %>%
-    as("SpatialPoints")
+  as("SpatialPoints")
 
-system.time(distance_raster <- distanceFromPoints(ras[[1]], natural_parks_p))
 
-  
-  
-  
+#As this process can take a lot of time, we can use cluster computing
+beginCluster()
+
+system.time(
+  distance_raster <- clusterR(ras[[1]], distanceFromPoints, args = list(xy = natural_parks_p))
+)
+
+
 
