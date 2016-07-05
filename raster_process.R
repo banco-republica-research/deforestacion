@@ -12,6 +12,9 @@ library(grid)
 library(dplyr)
 library(stringr)
 
+setwd("/Volumes/LaCie/Deforestacion/Hansen")
+res <- brick("loss_year_brick_1km.tif")
+
 #Open natural parks shapefile (2 SP object, 1. Projected in meters and 2. Mercator)
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/UNEP")
 natural_parks <- readOGR(dsn = "WDPA_June2016_COL-shapefile", layer = "WDPA_June2016_COL-shapefile-polygons")
@@ -110,53 +113,29 @@ list_polygons_p <- lapply(list_polygons, function(x){
 #Calculate distances (functional loop - use a mlaply if too slow)
 rasterOptions(tmpdir = "/Volumes/LaCie/Deforestacion/Hansen/Temp")
 
-#Discrete case
-p1 <- crop(res_mask_natural_parks_buffers, list_polygons_buffers[[1]])
-p1 <- mask(p1, list_polygons_buffers[[1]])
+calculate_distances_parallel <- function(buffer, points){
+  crop(res_mask_natural_parks_buffers, buffer) %>%
+    mask(buffer) %>%
+    clusterR(.,distanceFromPoints, args = list(xy = points)) %>%
+    mask(buffer) %>%
+    resample(res_mask_natural_parks_buffers)
+  
+
+}
 
 beginCluster()
-system.time(p2 <- clusterR(p1, distanceFromPoints, args = list(xy = list_polygons_p[[1]])))
+system.time(mask <- mapply(calculate_distances_parallel,
+                           buffer = list_polygons_buffers, 
+                           points = list_polygons_p))
 endCluster()
 
-p3 <- mask(p2, list_polygons_buffers[[1]])
-p4 <- merge(p3, res_mask_natural_parks_buffers)
-p4 <- resample(p4, res_mask_natural_parks_buffers)
+stack_distances <- stack(mask)
+writeRaster(stack_distances, filename = "distance_raster_buffer.tif", format = "GTiff",
+bylayer = T, progress = "text", overwrite = T)
 
-a <- nrow(res_mask_natural_parks_buffers) - nrow(p2)
-b <- ncol(res_mask_natural_parks_buffers) - ncol(p2)
-p3 <- extend(p2, c(a, b))
+###################################### EXTRACT #################################################
+list_dataframes <- lapply(mask, raster::extract, seq_len(ncell(res_mask_natural_parks_buffers)), df=TRUE)
 
-#Lists
-calculate_distance <- function(){
-  pts <- xyFromCell(res_mask_natural_parks_buffers, cell = n, spatial = T)
-  proj4string(pts) <- CRS(proj4string(natural_parks[[2]]))
-  return(as.vector(gDistance(pts, shp, byid = T)))
-}
-
-
-calculate_distances_parallel <- function(raster, buffer, points){
-  clusterR(raster, mask, args = list(mask = buffer)) %>%
-    clusterR(., distanceFromPoints, args = list(xy = points))
-}
-
-
-calculate_distances <- function(raster, buffer, points){
-  mask(raster, buffer) %>%
-    distanceFromPoints(., xy = points)
-}
-
-
-
-beginCluster()
-system.time(mask <- mapply(calculate_distances_parallel, 
-                           raster = res_mask_natural_parks_buffers, 
-                           buffer = list_polygons_buffers[1:2], 
-                           points = list_polygons_p[1:2]))
-endCluster()
-
-calculate_distances(raster = res_mask_natural_parks_buffers, 
-                    buffer = list_polygons_buffers[[1]], 
-                    points = list_polygons_p[[1]])
 
 
 
