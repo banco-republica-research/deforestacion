@@ -134,7 +134,17 @@ writeRaster(stack_distances, filename = "distance_raster_buffer.tif", format = "
 bylayer = T, progress = "text", overwrite = T)
 
 ###################################### EXTRACT #################################################
-list_dataframes <- lapply(mask, raster::extract, seq_len(ncell(res_mask_natural_parks_buffers)), df=TRUE)
+#1. Extract distance as data frame per buffer (list element)
+list_dataframes <- pblapply(mask, as.data.frame, xy = T, na.rm = T)
+
+#2. Extract row names (id cells)
+list_dataframes <- pblapply(list_dataframes, function(x){
+  x$ID <- row.names(x); x
+})
+
+#3. Append all elements of the list
+
+
 
 
 
