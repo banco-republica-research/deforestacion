@@ -31,27 +31,11 @@ natural_parks <- list(natural_parks, natural_parks_proj) %>%
   })
 
 
-############################################### NOT RUN ########################################################
-#Calculate distances from cell centrids the the natural parks frontiers
-natural_parks_p <- natural_parks_proj %>%
-  as("SpatialLines") %>%
-  as("SpatialPoints")
-
-#As this process can take a lot of time, we can use cluster computing
-beginCluster()
-
-system.time(
-  distance_raster <- clusterR(res[[1]], distanceFromPoints, args = list(xy = natural_parks_p))
-)
-endCluster()
-################################################################################################################
-
-
 #Buffers to asses "treatment zones" of 50 km 
 buffers_natural_parks_proj <- gBuffer(natural_parks[[2]], byid = T, width = 50000)
 buffers_natural_parks <- spTransform(buffers_natural_parks_proj, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
 
-##Not run: verification that buffers and polygons coincide
+######################## VERIFICATION: BUFFERS = POLYGONS ########################
 id1 <-list()
 for(i in c(1:length(natural_parks[[2]]@polygons))){
   
@@ -64,7 +48,7 @@ for(i in c(1:length(buffers_natural_parks@polygons))){
   id2[[i]] <- slot(buffers_natural_parks@polygons[[i]], "ID")
 }
 identical(id1, id2)
-#################################################################
+################################################################################
 
 # Get natural park SpatialPolygon atributes by cell number
 deforest_cells <- SpatialPoints(xyFromCell(res[[1]], 1:prod(dim(res[[1]]))), proj4string = CRS(proj4string(natural_parks[[1]])))
@@ -119,8 +103,6 @@ calculate_distances_parallel <- function(buffer, points){
     clusterR(.,distanceFromPoints, args = list(xy = points)) %>%
     mask(buffer) %>%
     resample(res_mask_natural_parks_buffers)
-  
-
 }
 
 beginCluster()
@@ -142,10 +124,15 @@ list_dataframes <- pblapply(list_dataframes, function(x){
   x$ID <- row.names(x); x
 })
 
-#3. Append all elements of the list
+#3. Append all elements of the list 
+distance_dataframe <- do.call(rbind, list_dataframes)
 
-
-
+######################################## WARNING #############################################
+# The number of cells identified previously using cellsFromPolygon it is lower than the      #
+# lenght of the ID column vector in the data.frame. This is explained because the distance   #
+# buffer rasters have more cells than the masked "res" raster -they treat as non-NA parts of #
+# sea and other parts outside the colombian continental land.                                #
+##############################################################################################
 
 
 

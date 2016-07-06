@@ -42,7 +42,7 @@ loss_year$na.rm <- TRUE
 system.time(loss_year <- do.call(mosaic, loss_year)) # (15 min)
 
 
-#If HD is full at this time, it is best to save the mosaic as an individual .tif and to erase all temporary files 
+#If mem is full at this time, it is best to save the mosaic as an individual .tif and to erase all temporary files 
 ######################################################################################################
  writeRaster(loss_year, filename = "loss_year_mosaic_30m.tif", format = "GTiff", progress = "text")  #
  removeTmpFiles(0.1)                                                                                 #
