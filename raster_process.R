@@ -30,6 +30,8 @@ natural_parks <- list(natural_parks, natural_parks_proj) %>%
                            "The Peak Regional Park")), ]
   })
 
+writeOGR(natural_parks[[1]], dsn = ".", layer = "TerritoriosResguardados", driver = "ESRI Shapefile")
+
 
 #Buffers to asses "treatment zones" of 50 km 
 buffers_natural_parks_proj <- gBuffer(natural_parks[[2]], byid = T, width = 50000)
@@ -54,6 +56,7 @@ identical(id1, id2)
 deforest_cells <- SpatialPoints(xyFromCell(res[[1]], 1:prod(dim(res[[1]]))), proj4string = CRS(proj4string(natural_parks[[1]])))
 natural_parks_atrb <- deforest_cells %over% natural_parks[[1]]
 natural_parks_atrb$ID <- row.names(natural_parks_atrb)
+natural_parks_atrb <- natural_parks_atrb[complete.cases(natural_parks_atrb[]), ]
 
 #Identify cells inside national parks and buffers and their identifier
 cells_naturalparks <- cellFromPolygon(res[[1]], natural_parks[[1]])
@@ -62,8 +65,7 @@ cells <- mapply(function(x, y){ #Remove cells from natural park polygons and lis
   x[! x %in% y]
 }, x = cells_naturalparks_buffers, y = cells_naturalparks)
 
-#Mask raster to values indice buffers
-res_mask_natural_parks <- mask(res[[1]], natural_parks[[1]])
+#Mask raster to values indices buffers
 res_mask_natural_parks_buffers <- mask(res[[1]], buffers_natural_parks)
 
 #Create a list of individual polygons per natural park
@@ -126,6 +128,7 @@ list_dataframes <- pblapply(list_dataframes, function(x){
 
 #3. Append all elements of the list 
 distance_dataframe <- do.call(rbind, list_dataframes)
+distance_dataframe$buffer_id <- rep(names(list_dataframes), sapply(list_dataframes, nrow))
 
 ######################################## WARNING #############################################
 # The number of cells identified previously using cellsFromPolygon it is lower than the      #
@@ -133,6 +136,14 @@ distance_dataframe <- do.call(rbind, list_dataframes)
 # buffer rasters have more cells than the masked "res" raster -they treat as non-NA parts of #
 # sea and other parts outside the colombian continental land.                                #
 ##############################################################################################
+
+#4. Extract deforestation brick (and remove NA's)
+deforestation_dataframe <- raster::extract(res, seq_len(ncell(res)), df = T)
+deforestation_dataframe <- deforestation_dataframe[complete.cases(deforestation_dataframe[2:length(deforestation_dataframe)]), ]
+
+#5. Identify cells from buffers
+names(cells_naturalparks_buffers) <- row.names(buffers_natural_parks@data)
+
 
 
 
