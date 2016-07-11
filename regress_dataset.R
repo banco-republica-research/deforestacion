@@ -16,5 +16,7 @@ setwd("C:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/")
 
 defo <- fread("Datos/Dataframes/dataframe_deforestacion.csv")
 dist <- fread("Datos/Dataframes/distancia_dataframe.csv")
+summary(defo)
 summary(dist)
+
 
