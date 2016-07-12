@@ -30,6 +30,7 @@ natural_parks <- list(natural_parks, natural_parks_proj) %>%
                            "The Peak Regional Park")), ]
   })
 
+
 writeOGR(natural_parks[[1]], dsn = ".", layer = "TerritoriosResguardados", driver = "ESRI Shapefile")
 
 
@@ -114,8 +115,6 @@ system.time(mask <- mapply(calculate_distances_parallel,
 endCluster()
 
 stack_distances <- stack(mask)
-writeRaster(stack_distances, filename = "distance_raster_buffer.tif", format = "GTiff",
-bylayer = T, progress = "text", overwrite = T)
 
 ###################################### EXTRACT #################################################
 #1. Extract distance as data frame per buffer (list element)
@@ -128,7 +127,7 @@ list_dataframes <- pblapply(list_dataframes, function(x){
 
 #3. Append all elements of the list 
 distance_dataframe <- do.call(rbind, list_dataframes)
-distance_dataframe$buffer_id <- rep(names(list_dataframes), sapply(list_dataframes, nrow))
+distance_dataframe$buffer_id <- rep(names(list_dataframes), sapply(list_dataframes, nrow)) #identify cells from buffers
 
 ######################################## WARNING #############################################
 # The number of cells identified previously using cellsFromPolygon it is lower than the      #
@@ -137,13 +136,14 @@ distance_dataframe$buffer_id <- rep(names(list_dataframes), sapply(list_datafram
 # sea and other parts outside the colombian continental land.                                #
 ##############################################################################################
 
+#4. Identify treatment and remove NA's (read WARNING)
+distance_dataframe$treatment <- ifelse(distance_dataframe$ID %in% unlist(cells_naturalparks), 1, 0)
+distance_dataframe <- filter(distance_dataframe, ID %in% unlist(cells_naturalparks_buffers))
+
 #4. Extract deforestation brick (and remove NA's)
 deforestation_dataframe <- raster::extract(res, seq_len(ncell(res)), df = T)
 deforestation_dataframe <- deforestation_dataframe[complete.cases(deforestation_dataframe[2:length(deforestation_dataframe)]), ]
 
-#5. Identify cells from buffers
-names(cells_naturalparks_buffers) <- row.names(buffers_natural_parks@data)
-
-
-
+#Write CSV
+write.csv(distance_dataframe, "distancia_dataframe.csv", row.names = F)
 
