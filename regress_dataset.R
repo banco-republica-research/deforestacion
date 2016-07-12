@@ -42,7 +42,7 @@ dist_b <- merge(dist, parks_b, by.x="buffer_id", by.y="ID")
 dist_b$DESIG2 <- mapvalues(dist_b$DESIG, levels(dist_b$DESIG), c(1:16))
 dim(dist_b)
 
-# pixel by year (stock) and type of park 
+# pixel by year (stock) and type of park (and also for all types)
 
 for(y in 2000:2012) {
 
@@ -51,22 +51,25 @@ for(y in 2000:2012) {
   eval(parse(text=paste("dist_",y," <- list()", sep="")))
   eval(parse(text=paste("dist_y <- dist_b[dist_b$STATUS_YR < ",y,",]", sep="")))
   print(dim(dist_y))
-
+  
+  # For each type 
   for(i in levels(dist_b$DESIG2)){
     print(i)
     dist_temp <- dist_y[dist_y$DESIG2==i,]
-    dist_temp$dup <- duplicated(dist_temp$ID)
     setorder(dist_temp, ID,-treatment,dist)
     dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
     eval(parse(text=paste("dist_",y,"[[i]] <- dist_temp", sep="")))
-    
     }
+
+  eval(parse(text=paste("saveRDS(dist_",y,", file =  paste0(data, \"dist_",y,".rds\"))", sep="")))
+  
+  # for all types
+  eval(parse(text=paste("dist_temp <- do.call(rbind, dist_",y,")", sep="")))
+  setorder(dist_temp, ID,-treatment,dist)
+  dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
+  eval(parse(text=paste("saveRDS(dist_temp, file =  paste0(data, \"dist_",y,"_all.rds\"))", sep="")))
+  
   }
-
-# lapply(dist_2000,dim)
-
-
-
 
 
 
@@ -101,5 +104,17 @@ for(i in levels(dist_2000$DESIG2)){
   dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
   dist_2000_i[[i]] <- dist_temp
 }
+
+# pixel by year (stock): all parks 
+
+
+for(y in 2000:2012) {
+  # for all types
+  print(paste0("year ",y))
+  eval(parse(text=paste("dist_temp <- do.call(rbind, dist_",y,")", sep="")))
+  setorder(dist_temp, ID,-treatment,dist)
+  dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
+  eval(parse(text=paste("saveRDS(dist_temp, file =  paste0(data, \"dist_",y,"_all.rds\"))", sep="")))
+} 
 
 
