@@ -79,10 +79,8 @@ for(y in 2000:2012) {
 
 ########################################################
 
-
-defo <- fread(paste0(data,"dataframe_deforestacion.csv"))
-
-
+defo <- read.csv("dataframe_deforestacion.csv")
+defo$loss_sum <- rowSums(defo[, c(4:length(names(defo)))])
 
 
 ########################################################
