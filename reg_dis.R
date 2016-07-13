@@ -19,7 +19,7 @@ data <-"Datos/Dataframes/"
 ########################## REGRESSION DISCONTINUITY ################################
 
 #Import datasets
-defo <- fread(paste0(data,"dataframe_deforestacion.csv"))
+defo <- read.csv(paste0(data,"dataframe_deforestacion.csv"))
 dist_2000_all <- readRDS(paste0(data,"dist_2000_all.rds"))
 dist_2000_national <- readRDS(paste0(data,"dist_2000_national.rds"))
 dist_2000_regional <- readRDS(paste0(data,"dist_2000_regional.rds"))
@@ -29,8 +29,19 @@ defo$loss_sum <- rowSums(defo[, c(4:length(names(defo)))])
 
 #Merge data
 defo_dist <- merge(defo, dist_2000_all, by.x = "ID", by.y = "ID")
-defo_dist$dist_disc <- ifelse(defo_dist$ID %in% unlist(cells_naturalparks), 1, -1) * defo_dist$dist
+defo_dist$dist_disc <-  ifelse(defo_dist$treatment, 1, -1) * defo_dist$dist
+  
+defo_dist_nat <- merge(defo, dist_2000_national, by.x = "ID", by.y = "ID")
+defo_dist_nat$dist_disc <- ifelse(defo_dist_nat$treatment, 1, -1) * defo_dist_nat$dist
 
+defo_dist_reg <- merge(defo, dist_2000_regional, by.x = "ID", by.y = "ID")
+defo_dist_reg$dist_disc <- ifelse(defo_dist_reg$treatment, 1, -1) * defo_dist_reg$dist
+
+# Naive regression
+
+lm(loss_sum ~ treatment, data = defo_dist)
+lm(loss_sum ~ treatment, data = defo_dist_nat)
+lm(loss_sum ~ treatment, data = defo_dist_reg)
 
 
 #Regression discontinuity 
