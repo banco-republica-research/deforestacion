@@ -1,12 +1,28 @@
+
+# Create dataframes for regressions
+
+############################
+
+rm(list=ls())
+library(data.table)
 library(rdrobust)
 library(rdd)
 library(rddtools)
+
+# Leonardo
+# setwd("C:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/")
+# Ivan 
+setwd("Dropbox/BANREP/Deforestacion/")
+
+data <-"Datos/Dataframes/"
+
 ########################## REGRESSION DISCONTINUITY ################################
 
 #Import datasets
-setwd("Dropbox/BANREP/Deforestacion/Datos/Dataframes")
-defo <- read.csv("dataframe_deforestacion.csv")
-dist_2000_all <- readRDS("dist_2000_all.rds")
+defo <- fread(paste0(data,"dataframe_deforestacion.csv"))
+dist_2000_all <- readRDS(paste0(data,"dist_2000_all.rds"))
+dist_2000_national <- readRDS(paste0(data,"dist_2000_national.rds"))
+dist_2000_regional <- readRDS(paste0(data,"dist_2000_regional.rds"))
 
 #Aggregate deforestation (2001 - 2013?)
 defo$loss_sum <- rowSums(defo[, c(4:length(names(defo)))])
@@ -15,14 +31,6 @@ defo$loss_sum <- rowSums(defo[, c(4:length(names(defo)))])
 defo_dist <- merge(defo, dist_2000_all, by.x = "ID", by.y = "ID")
 defo_dist$dist_disc <- ifelse(defo_dist$ID %in% unlist(cells_naturalparks), 1, -1) * defo_dist$dist
 
-#Create regional identifier
-regional <- c("Distritos De Conservacion De Suelos",
-              "Distritos Regionales De Manejo Integrado",
-              "Parque Natural Regional",
-              "Reservas Forestales Protectoras Regionales",
-              " A\u0081reas De Recreacion",
-              "Reserva Forestal Protectora Nacional")
-defo_dist$regional <- ifelse(defo_dist$DESIG %in% regional, 1 , 0)
 
 
 #Regression discontinuity 

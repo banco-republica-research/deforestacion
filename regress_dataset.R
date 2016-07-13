@@ -1,5 +1,5 @@
 
-# Regressions dataframes
+# Create dataframes for regressions
 
 ############################
 
@@ -10,10 +10,10 @@ library(stringr)
 library(plyr)
 library(dplyr)
 
-
 # Leonardo
 setwd("C:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/")
 # Ivan 
+# setwd("Dropbox/BANREP/Deforestacion/")
 
 parks <-"Datos/UNEP/"
 data <-"Datos/Dataframes/"
@@ -42,7 +42,10 @@ dist_b <- merge(dist, parks_b, by.x="buffer_id", by.y="ID")
 dist_b$DESIG2 <- mapvalues(dist_b$DESIG, levels(dist_b$DESIG), c(1:16))
 dim(dist_b)
 
-# pixel by year (stock) and type of park (and also for all types)
+# pixel by year (stock) and type of park (and also for groups of park types)
+
+national <- c(2,5,8,11,12,13,14,15,16)
+regional <- c(1,3,4,6,7,9,10)
 
 for(y in 2000:2012) {
 
@@ -61,26 +64,36 @@ for(y in 2000:2012) {
     eval(parse(text=paste("dist_",y,"[[i]] <- dist_temp", sep="")))
     }
 
+  # save for each type
   eval(parse(text=paste("saveRDS(dist_",y,", file =  paste0(data, \"dist_",y,".rds\"))", sep="")))
   
   # for all types
+  print("all parks")
   eval(parse(text=paste("dist_temp <- do.call(rbind, dist_",y,")", sep="")))
   setorder(dist_temp, ID,-treatment,dist)
   dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
   eval(parse(text=paste("saveRDS(dist_temp, file =  paste0(data, \"dist_",y,"_all.rds\"))", sep="")))
   
+  # for National managed parks 
+  print("national")
+  eval(parse(text=paste("dist_temp <- do.call(rbind, dist_",y,"[national])", sep="")))
+  setorder(dist_temp, ID,-treatment,dist)
+  dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
+  eval(parse(text=paste("saveRDS(dist_temp, file =  paste0(data, \"dist_",y,"_national.rds\"))", sep="")))
+ 
+  # for Regional managed parks 
+  print("regional")
+  eval(parse(text=paste("dist_temp <- do.call(rbind, dist_",y,"[regional])", sep="")))
+  setorder(dist_temp, ID,-treatment,dist)
+  dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
+  eval(parse(text=paste("saveRDS(dist_temp, file =  paste0(data, \"dist_",y,"_regional.rds\"))", sep="")))
+
   }
 
 
 
-########################################################
 
-# Deforestation
 
-########################################################
-
-defo <- read.csv("dataframe_deforestacion.csv")
-defo$loss_sum <- rowSums(defo[, c(4:length(names(defo)))])
 
 
 ########################################################
@@ -114,5 +127,22 @@ for(y in 2000:2012) {
   dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
   eval(parse(text=paste("saveRDS(dist_temp, file =  paste0(data, \"dist_",y,"_all.rds\"))", sep="")))
 } 
+
+# Reopen dist big files
+for(y in 2000:2012) {
+  print(paste0("year ",y))
+  eval(parse(text=paste("dist_",y," <- readRDS(paste0(data,\"dist_",y,".rds\"))", sep="")))
+  }  
+
+
+# Regional parks in all dataset (2000)
+
+regional <- c("Distritos De Conservacion De Suelos",
+              "Distritos Regionales De Manejo Integrado",
+              "Parque Natural Regional",
+              "Reservas Forestales Protectoras Regionales",
+              " A\u0081reas De Recreacion",
+              "Reserva Forestal Protectora Nacional")
+defo_dist$regional <- ifelse(defo_dist$DESIG %in% regional, 1 , 0)
 
 
