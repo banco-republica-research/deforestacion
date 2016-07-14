@@ -63,8 +63,6 @@ for(y in 2000:2012) {
     dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
     eval(parse(text=paste("dist_",y,"[[i]] <- dist_temp", sep="")))
     }
-
-  # save for each type
   eval(parse(text=paste("saveRDS(dist_",y,", file =  paste0(data, \"dist_",y,".rds\"))", sep="")))
   
   # for all types
@@ -90,6 +88,32 @@ for(y in 2000:2012) {
 
   }
 
+########################################################
+
+# Panel: 2001-2012
+
+########################################################
+
+
+# for all, national, regional
+
+
+areas <- c("all","national","regional")
+
+for(a in areas) {
+  print(paste0("area ",a))
+  dist_panel <- list()
+  for(y in 2001:2012) {
+    print(paste0("year ",y))
+    eval(parse(text=paste("dist_temp <- readRDS(paste0(data,\"dist_",y,"_",a,".rds\"))", sep="")))
+    dist_temp <- dist_temp[dist_temp$dist<=10000,]
+    dist_temp$year <- y
+    dist_panel[[y-2000]] <- dist_temp
+    }
+
+  dist_panel <- do.call(rbind, dist_panel)
+  eval(parse(text=paste("saveRDS(dist_panel, file =  paste0(data, \"dist_panel_",a,".rds\"))", sep="")))
+  }
 
 
 
@@ -145,4 +169,18 @@ regional <- c("Distritos De Conservacion De Suelos",
               "Reserva Forestal Protectora Nacional")
 defo_dist$regional <- ifelse(defo_dist$DESIG %in% regional, 1 , 0)
 
+# Panel for all
+
+for(y in 2001:2012) {
+  print(paste0("year ",y))
+  eval(parse(text=paste("dist_temp <- readRDS(paste0(data,\"dist_",y,"_all.rds\"))", sep="")))
+  dist_temp <- dist_temp[dist_temp$dist<=10000,]
+  dist_temp$year <- y
+  print(dim(dist_temp))
+  dist_panel[[y-2000]] <- dist_temp
+}
+
+dist_panel <- do.call(rbind, dist_panel)
+dim(dist_panel)
+saveRDS(dist_panel, file =  paste0(data, "dist_panel_all.rds"))
 

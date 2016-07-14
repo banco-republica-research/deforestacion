@@ -1,5 +1,5 @@
 
-# Create dataframes for regressions
+# Run RD regressions
 
 ############################
 
@@ -16,33 +16,47 @@ setwd("Dropbox/BANREP/Deforestacion/")
 
 data <-"Datos/Dataframes/"
 
-########################## REGRESSION DISCONTINUITY ################################
+########################################################
 
-#Import datasets
-defo <- read.csv(paste0(data,"dataframe_deforestacion.csv"))
-dist_2000_all <- readRDS(paste0(data,"dist_2000_all.rds"))
-dist_2000_national <- readRDS(paste0(data,"dist_2000_national.rds"))
-dist_2000_regional <- readRDS(paste0(data,"dist_2000_regional.rds"))
+# Datasets  
 
-#Aggregate deforestation (2001 - 2013?)
-defo$loss_sum <- rowSums(defo[, c(4:length(names(defo)))])
+########################################################
 
-#Merge data
-defo_dist <- merge(defo, dist_2000_all, by.x = "ID", by.y = "ID")
-defo_dist$dist_disc <-  ifelse(defo_dist$treatment, 1, -1) * defo_dist$dist
+#Aggregate deforestation (2001 - 2012!)
+defo <- fread(paste0(data,"dataframe_deforestacion.csv"))
+defo[, loss_sum := Reduce(`+`, .SD), .SDcols=c(4:15)][]
+defo_merge <- defo[, c(2,17), with = FALSE]
+
+# defo1 <- read.csv(paste0(data,"dataframe_deforestacion.csv"))
+# defo1$loss_sum <- rowSums(defo1[, c(4:15)])
   
-defo_dist_nat <- merge(defo, dist_2000_national, by.x = "ID", by.y = "ID")
-defo_dist_nat$dist_disc <- ifelse(defo_dist_nat$treatment, 1, -1) * defo_dist_nat$dist
+# Merge defo to distances by type of area 
 
-defo_dist_reg <- merge(defo, dist_2000_regional, by.x = "ID", by.y = "ID")
-defo_dist_reg$dist_disc <- ifelse(defo_dist_reg$treatment, 1, -1) * defo_dist_reg$dist
+areas <- c("all","national","regional")
+defo_dist <- list()
+
+for(a in areas) {
+  print(paste0("area ",a))
+  eval(parse(text=paste("dist_temp <- readRDS(paste0(data,\"dist_2000_",a,".rds\"))", sep="")))
+  dist_temp <- merge(dist_temp, defo_merge,by.x = "ID", by.y = "ID")
+  print(dim(dist_temp))
+  dist_temp$dist_disc <-  ifelse(dist_temp$treatment, 1, -1) * dist_temp$dist
+  defo_dist[[a]] <- dist_temp
+  }
+
+
+########################################################
+
+# Regressions  
+
+########################################################
 
 # Naive regression
 
-lm(loss_sum ~ treatment, data = defo_dist)
-lm(loss_sum ~ treatment, data = defo_dist_nat)
-lm(loss_sum ~ treatment, data = defo_dist_reg)
-
+for(a in areas) {
+  print(paste0("Area ",a))
+  print(lm(loss_sum ~ treatment, data = defo_dist[[a]]))
+  }
 
 #Regression discontinuity 
 
