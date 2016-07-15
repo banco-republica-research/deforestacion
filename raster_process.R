@@ -31,9 +31,6 @@ natural_parks <- list(natural_parks, natural_parks_proj) %>%
   })
 
 
-writeOGR(natural_parks[[1]], dsn = ".", layer = "TerritoriosResguardados", driver = "ESRI Shapefile")
-
-
 #Buffers to asses "treatment zones" of 50 km 
 buffers_natural_parks_proj <- gBuffer(natural_parks[[2]], byid = T, width = 50000)
 buffers_natural_parks <- spTransform(buffers_natural_parks_proj, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
