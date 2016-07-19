@@ -107,8 +107,8 @@ for(a in areas) {
   dist_panel <- merge(dist_panel, iddat, all.x=TRUE, all.y=TRUE, by=c("ID", "year"))
   dist_panel$treatment[is.na(dist_panel$treatment)] <- 0 
   
-  desig_2012 <- dist_panel[dist_panel$year==2012,c("ID","dist","DESIG2")]
-  names(desig_2012) <- c("ID","dist_2012","DESIG2_2012")
+  desig_2012 <- dist_panel[dist_panel$year==2012,c("ID","buffer_id","dist","DESIG2")]
+  names(desig_2012) <- c("ID","buffer_id_2012","dist_2012","DESIG2_2012")
   dist_panel <- merge(dist_panel, desig_2012, all.x=TRUE, all.y=TRUE, by="ID")
   print(dim(dist_panel))
   saveRDS(dist_panel, file =  paste0(data,"dist_panel_",a,".rds"))

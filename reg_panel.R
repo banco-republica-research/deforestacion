@@ -17,7 +17,6 @@ data <-"Datos/Dataframes/"
 ########################################################
 
 # Datasets: 2001-2012  
-# (and export to stata)
 
 ########################################################
 
@@ -37,9 +36,12 @@ for(a in areas) {
   defo_temp <- melt(defo_temp, id.vars = "ID", measure = patterns("^loss_year_brick_1km."), variable.name = "year", value.name = "defo")
   defo_temp$year <- as.numeric(substr(defo_temp$year, 21,23)) + 1999
   defo_dist[[a]] <- merge(dist_temp, defo_temp,by = c("ID", "year"))
-  eval(parse(text=paste("write.dta(defo_dist[[",a,"]],paste0(data,\"defo_panel_",a,".dta\"))", sep="")))
 }
 
+# Export to stata
+for(a in areas) {
+  eval(parse(text=paste("write.dta(defo_dist[[\"",a,"\"]],paste0(data,\"defo_panel_",a,".dta\"))", sep="")))
+  }
 
 ########################################################
 
