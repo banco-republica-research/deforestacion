@@ -18,6 +18,7 @@ processing_rasters <- function(layer.list, ext, shape){
     mask(shape)
 }
 
+
 # Open .tif files as a raster (the raster package allow to read these files in the disk and not in the memory, this improves the efficiency of functions in R)
 setwd("~")
 setwd("/Volumes/LaCie/NOAA2/TIFF/")
