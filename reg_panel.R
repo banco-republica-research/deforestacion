@@ -20,7 +20,7 @@ data <-"Datos/Dataframes/"
 
 ########################################################
 
-# Deforestation 
+# Deforestation (2001-2012) 
 defo <- fread(paste0(data,"dataframe_deforestacion.csv"))
 defo <- defo[, (c("loss_year_brick_1km.1","loss_year_brick_1km.14")) := NULL]
 
@@ -31,17 +31,33 @@ defo_dist <- list()
 
 for(a in areas) {
   print(paste0("area ",a))
-  eval(parse(text=paste("dist_temp <- readRDS(paste0(data,\"dist_panel_",a,".rds\"))", sep="")))
+  dist_temp <- readRDS(paste0(data,"dist_panel_",a,".rds"))
   defo_temp <-  defo[defo$ID %in% unique(dist_temp$ID)]
   defo_temp <- melt(defo_temp, id.vars = "ID", measure = patterns("^loss_year_brick_1km."), variable.name = "year", value.name = "defo")
   defo_temp$year <- as.numeric(substr(defo_temp$year, 21,23)) + 1999
   defo_dist[[a]] <- merge(dist_temp, defo_temp,by = c("ID", "year"))
+  # Export to stata
+  eval(parse(text=paste("write.dta(defo_dist[[\"",a,"\"]],paste0(data,\"defo_panel_",a,".dta\"))", sep="")))
 }
 
-# Export to stata
-for(a in areas) {
-  eval(parse(text=paste("write.dta(defo_dist[[\"",a,"\"]],paste0(data,\"defo_panel_",a,".dta\"))", sep="")))
+# Merge defo to distances for each area (1-16)
+
+defo_dist <- list()
+
+for(a in 1:16) {
+  print(paste0("area ",a))
+  ok <- file.exists(paste0(data,"dist_panel_",a,".rds"))
+  if (ok) {
+    dist_temp <- readRDS(paste0(data,"dist_panel_",a,".rds"))
+    defo_temp <-  defo[defo$ID %in% unique(dist_temp$ID)]
+    defo_temp <- melt(defo_temp, id.vars = "ID", measure = patterns("^loss_year_brick_1km."), variable.name = "year", value.name = "defo")
+    defo_temp$year <- as.numeric(substr(defo_temp$year, 21,23)) + 1999
+    defo_dist[[a]] <- merge(dist_temp, defo_temp,by = c("ID", "year"))
+    # Export to stata
+    eval(parse(text=paste("write.dta(defo_dist[[",a,"]],paste0(data,\"defo_panel_",a,".dta\"))", sep="")))
   }
+}
+
 
 ########################################################
 

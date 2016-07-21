@@ -85,7 +85,6 @@ for(y in 2000:2012) {
 
 ########################################################
 
-
 # for all, national, regional
 
 areas <- c("all","national","regional")
@@ -114,6 +113,37 @@ for(a in areas) {
   saveRDS(dist_panel, file =  paste0(data,"dist_panel_",a,".rds"))
   }
 
+
+# for each area (1-16)
+
+for(a in 1:16) {
+  print(paste0("area ",a))
+  dist_panel <- list()
+  for(y in 2001:2012) {
+    print(paste0("year ",y))
+    dist_temp <- readRDS(paste0(data,"dist_",y,".rds"))[[a]]
+    if ((dim(dist_temp)[1]) > 0){
+      dist_temp <- dist_temp[dist_temp$dist<=10000,]
+      dist_temp$year <- y
+      dist_panel[[y-2000]] <- dist_temp
+    }
+  }
+  
+  if (length(dist_panel)>1) {
+  dist_panel <- do.call(rbind, dist_panel)
+  
+  # Balanced panel: treatment = 0 if park did not exit in year y, and Time-invariant type of park (Use the 2012 park)
+  iddat <- expand.grid(ID = unique(dist_panel$ID), year = unique(dist_panel$year))
+  dist_panel <- merge(dist_panel, iddat, all.x=TRUE, all.y=TRUE, by=c("ID", "year"))
+  dist_panel$treatment[is.na(dist_panel$treatment)] <- 0 
+  
+  desig_2012 <- dist_panel[dist_panel$year==2012,c("ID","buffer_id","dist","DESIG2")]
+  names(desig_2012) <- c("ID","buffer_id_2012","dist_2012","DESIG2_2012")
+  dist_panel <- merge(dist_panel, desig_2012, all.x=TRUE, all.y=TRUE, by="ID")
+  print(dim(dist_panel))
+  saveRDS(dist_panel, file =  paste0(data,"dist_panel_",a,".rds"))
+  }
+}
 
 
 
