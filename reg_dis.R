@@ -4,6 +4,7 @@
 ############################
 
 rm(list=ls())
+library(plyr)
 library(dplyr)
 library(data.table)
 library(rdrobust)
@@ -46,11 +47,11 @@ p <- rdrobust(
 
 setwd("~/Dropbox/BANREP/Deforestacion/Results/RD/Graphs/")
 mapply(function(x, type){
-  pdf(str_c("RD_", type, ".pdf"), height=6, width=6)
+  pdf(str_c("RD_", type, ".pdf"), height=6, width=12)
   rdplot(
-    y = defo_dist[[1]]$loss_sum,
-    x = defo_dist[[1]]$dist_disc,
-    y.lim = c(0.5, 2),
+    y = x$loss_sum,
+    x = x$dist_disc,
+    y.lim = c(0, 0.2),
     title = str_c("Regresion discontinuity for", type, sep = " "),
     x.label = "Distance to national park frontier",
     y.label = "Deforestation (%)")
