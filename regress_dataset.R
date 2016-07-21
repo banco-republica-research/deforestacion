@@ -44,14 +44,15 @@ dim(dist_b)
 
 # pixel by year (stock) and type of park (and also for groups of park types)
 
+all <- c(1:16)
 national <- c(2,5,8,11,12,13,14,15,16)
 regional <- c(1,3,4,6,7,9,10)
+areas <- c("all","national","regional")
 
 for(y in 2000:2012) {
-
+  
   print(paste0("year ",y))
-#  dist_y <- dist_b[dist_b$STATUS_YR < y,]
-  eval(parse(text=paste("dist_",y," <- list()", sep="")))
+  dist_yl <- list()
   eval(parse(text=paste("dist_y <- dist_b[dist_b$STATUS_YR < ",y,",]", sep="")))
   print(dim(dist_y))
   
@@ -59,36 +60,90 @@ for(y in 2000:2012) {
   for(i in levels(dist_b$DESIG2)){
     print(i)
     dist_temp <- dist_y[dist_y$DESIG2==i,]
+#    print(dim(dist_temp))
     setorder(dist_temp, ID,-treatment,dist)
     dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
-    eval(parse(text=paste("dist_",y,"[[i]] <- dist_temp", sep="")))
+    dist_yl[[i]] <- dist_temp
     }
+  saveRDS(dist_yl, file =  paste0(data,"dist_",y,".rds"))
 
-  # save for each type
-  eval(parse(text=paste("saveRDS(dist_",y,", file =  paste0(data, \"dist_",y,".rds\"))", sep="")))
-  
-  # for all types
-  print("all parks")
-  eval(parse(text=paste("dist_temp <- do.call(rbind, dist_",y,")", sep="")))
-  setorder(dist_temp, ID,-treatment,dist)
-  dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
-  eval(parse(text=paste("saveRDS(dist_temp, file =  paste0(data, \"dist_",y,"_all.rds\"))", sep="")))
-  
-  # for National managed parks 
-  print("national")
-  eval(parse(text=paste("dist_temp <- do.call(rbind, dist_",y,"[national])", sep="")))
-  setorder(dist_temp, ID,-treatment,dist)
-  dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
-  eval(parse(text=paste("saveRDS(dist_temp, file =  paste0(data, \"dist_",y,"_national.rds\"))", sep="")))
- 
-  # for Regional managed parks 
-  print("regional")
-  eval(parse(text=paste("dist_temp <- do.call(rbind, dist_",y,"[regional])", sep="")))
-  setorder(dist_temp, ID,-treatment,dist)
-  dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
-  eval(parse(text=paste("saveRDS(dist_temp, file =  paste0(data, \"dist_",y,"_regional.rds\"))", sep="")))
-
+  # By type of area 
+  for(a in areas) {
+    print(paste(a, "Parks"))
+    eval(parse(text=paste("dist_temp <- dist_yl[",a,"]", sep="")))
+    dist_temp <- do.call(rbind, dist_temp)
+    setorder(dist_temp, ID,-treatment,dist)
+    dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
+    saveRDS(dist_temp, file =  paste0(data, "dist_",y,"_",a,".rds"))
+    }
   }
+
+
+########################################################
+
+# Panel: 2001-2012
+
+########################################################
+
+# for all, national, regional
+
+areas <- c("all","national","regional")
+
+for(a in areas) {
+  print(paste0("area ",a))
+  dist_panel <- list()
+  for(y in 2001:2012) {
+    print(paste0("year ",y))
+    dist_temp <- readRDS(paste0(data,"dist_",y,"_",a,".rds"))
+    dist_temp <- dist_temp[dist_temp$dist<=10000,]
+    dist_temp$year <- y
+    dist_panel[[y-2000]] <- dist_temp
+    }
+  dist_panel <- do.call(rbind, dist_panel)
+
+  # Balanced panel: treatment = 0 if park did not exit in year y, and Time-invariant type of park (Use the 2012 park)
+  iddat <- expand.grid(ID = unique(dist_panel$ID), year = unique(dist_panel$year))
+  dist_panel <- merge(dist_panel, iddat, all.x=TRUE, all.y=TRUE, by=c("ID", "year"))
+  dist_panel$treatment[is.na(dist_panel$treatment)] <- 0 
+  
+  desig_2012 <- dist_panel[dist_panel$year==2012,c("ID","buffer_id","dist","DESIG2")]
+  names(desig_2012) <- c("ID","buffer_id_2012","dist_2012","DESIG2_2012")
+  dist_panel <- merge(dist_panel, desig_2012, all.x=TRUE, all.y=TRUE, by="ID")
+  print(dim(dist_panel))
+  saveRDS(dist_panel, file =  paste0(data,"dist_panel_",a,".rds"))
+  }
+
+
+# for each area (1-16)
+
+for(a in 1:16) {
+  print(paste0("area ",a))
+  dist_panel <- list()
+  for(y in 2001:2012) {
+    print(paste0("year ",y))
+    dist_temp <- readRDS(paste0(data,"dist_",y,".rds"))[[a]]
+    if ((dim(dist_temp)[1]) > 0){
+      dist_temp <- dist_temp[dist_temp$dist<=10000,]
+      dist_temp$year <- y
+      dist_panel[[y-2000]] <- dist_temp
+    }
+  }
+  
+  if (length(dist_panel)>1) {
+  dist_panel <- do.call(rbind, dist_panel)
+  
+  # Balanced panel: treatment = 0 if park did not exit in year y, and Time-invariant type of park (Use the 2012 park)
+  iddat <- expand.grid(ID = unique(dist_panel$ID), year = unique(dist_panel$year))
+  dist_panel <- merge(dist_panel, iddat, all.x=TRUE, all.y=TRUE, by=c("ID", "year"))
+  dist_panel$treatment[is.na(dist_panel$treatment)] <- 0 
+  
+  desig_2012 <- dist_panel[dist_panel$year==2012,c("ID","buffer_id","dist","DESIG2")]
+  names(desig_2012) <- c("ID","buffer_id_2012","dist_2012","DESIG2_2012")
+  dist_panel <- merge(dist_panel, desig_2012, all.x=TRUE, all.y=TRUE, by="ID")
+  print(dim(dist_panel))
+  saveRDS(dist_panel, file =  paste0(data,"dist_panel_",a,".rds"))
+  }
+}
 
 
 
@@ -144,5 +199,37 @@ regional <- c("Distritos De Conservacion De Suelos",
               " A\u0081reas De Recreacion",
               "Reserva Forestal Protectora Nacional")
 defo_dist$regional <- ifelse(defo_dist$DESIG %in% regional, 1 , 0)
+
+# Panel for all
+
+for(y in 2001:2012) {
+  print(paste0("year ",y))
+  eval(parse(text=paste("dist_temp <- readRDS(paste0(data,\"dist_",y,"_all.rds\"))", sep="")))
+  dist_temp <- dist_temp[dist_temp$dist<=10000,]
+  dist_temp$year <- y
+  print(dim(dist_temp))
+  dist_panel[[y-2000]] <- dist_temp
+}
+
+dist_panel <- do.call(rbind, dist_panel)
+dim(dist_panel)
+saveRDS(dist_panel, file =  paste0(data, "dist_panel_all.rds"))
+
+
+# Create balanced panel
+dist_panel <- readRDS(paste0(data,"dist_panel_all.rds"))
+table(dist_panel$year)
+
+iddat = expand.grid(ID = unique(dist_panel$ID), year = unique(dist_panel$year))
+dist_panel <- merge(dist_panel, iddat, all.x=TRUE, all.y=TRUE, by=c("ID", "year"))
+table(dist_panel$treatment, useNA = "always")
+
+dist_panel$treatment[is.na(dist_panel$treatment)] <- 0 
+table(dist_panel$treatment, useNA = "always")
+
+desig_2012 <- dist_panel[dist_panel$year==2012,c("ID","DESIG2")]
+names(desig_2012) <- c("ID","DESIG2_2012")
+dist_panel <- merge(dist_panel, desig_2012, all.x=TRUE, all.y=TRUE, by="ID")
+
 
 
