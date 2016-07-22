@@ -81,9 +81,11 @@ list_dataframes_indigenous <- pblapply(list_dataframes_indigenous, function(x){
 
 #3. Append all elements of the list 
 distance_dataframe_black <- do.call(rbind, list_dataframes_black)
+names(list_dataframes_black) <- c(1: length(list_dataframes_black))
 distance_dataframe_black$buffer_id <- rep(names(list_dataframes_black), sapply(list_dataframes_black, nrow)) #identify cells from buffers
 
 distance_dataframe_indigenous <- do.call(rbind, list_dataframes_indigenous)
+names(list_dataframes_indigenous) <- c(1: length(list_dataframes_indigenous))
 distance_dataframe_indigenous$buffer_id <- rep(names(list_dataframes_indigenous), sapply(list_dataframes_indigenous, nrow)) #identify cells from buffers
 
 #4. Identify treatment and remove NA's (read WARNING)
@@ -94,6 +96,7 @@ list <- list(distance_dataframe_black, distance_dataframe_indigenous)
 names(list) <- c("black", "indigenous")
 
 #5. Export
+setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes")
 lapply(1:length(list), function(i){
   write.csv(list[[i]], file = str_c("distance_dataframe_", names(list)[[i]], ".csv") , row.names = FALSE)
 })

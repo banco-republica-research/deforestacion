@@ -1,9 +1,11 @@
 
-# Run RD regressions
+# Run RD regressions (All, national and regional)
 
 ############################
 
 rm(list=ls())
+library(plyr)
+library(dplyr)
 library(data.table)
 library(rdrobust)
 library(rdd)
@@ -17,68 +19,23 @@ rds_2000 <- list_files[str_detect(list_files, "dist_2000")][c(1:3)] %>%
   lapply(., readRDS) %>%
   lapply(., data.frame)
 
-
-
-#Aggregate deforestation (2001 - 2012!)
-defo <- fread(paste0(data,"dataframe_deforestacion.csv"))
-defo[, loss_sum := Reduce(`+`, .SD), .SDcols=c(4:15)][]
-defo_merge <- defo[, c(2,17), with = FALSE]
-
-# Merge defo to distances by type of area 
-areas <- c("all","national","regional")
-defo_dist <- list()
-
-for(a in areas) {
-  print(paste0("area ",a))
-  dist_temp <- readRDS(paste0(data,"dist_2000_",a,".rds"))
-  dist_temp <- merge(dist_temp, defo_merge,by.x = "ID", by.y = "ID")
-  print(dim(dist_temp))
-  dist_temp$dist_disc <-  ifelse(dist_temp$treatment, 1, -1) * dist_temp$dist
-  defo_dist[[a]] <- dist_temp
-  }
-
+#Aggregate deforestation (2001 - 2012)
+defo$loss_sum <- rowSums(defo[, c(4:length(names(defo)))])
+loss_sum <- select(defo, c(ID, loss_sum))
 
 #Merge data
 defo_dist <- lapply(rds_2000, function(x){
-  merge(defo, x, by.x = "ID", by.y = "ID")
+  merge(loss_sum, x, by.x = "ID", by.y = "ID") %>%
+    mutate(., dist_disc = ifelse(treatment == 1, 1, -1) * dist)
   })
-
-lapply(defo_dist, function(x){
- x$dist_disc <- ifelse(x$treatment ==1, 1, -1) * defo_dist$dist
-})
-
-defo_dist[[1]]$dist_disc <- ifelse(defo_dist[[1]]$treatment ==1, 1, -1) * defo_dist[[1]]$dist
-
-
-#Aggregate deforestation (2001 - 2012!)
-defo <- fread(paste0(data,"dataframe_deforestacion.csv"))
-defo[, loss_sum := Reduce(`+`, .SD), .SDcols=c(4:15)][]
-defo_merge <- defo[, c(2,17), with = FALSE]
-
-# Merge defo to distances by type of area 
-areas <- c("all","national","regional")
-defo_dist <- list()
-
-for(a in areas) {
-  print(paste0("area ",a))
-  dist_temp <- readRDS(paste0(data,"dist_2000_",a,".rds"))
-  dist_temp <- merge(dist_temp, defo_merge,by.x = "ID", by.y = "ID")
-  print(dim(dist_temp))
-  dist_temp$dist_disc <-  ifelse(dist_temp$treatment, 1, -1) * dist_temp$dist
-  defo_dist[[a]] <- dist_temp
-  }
-
-
-
-# Regressions  
 
 
 # Naive regression
-
-for(a in areas) {
-  print(paste0("Area ",a))
-  print(lm(loss_sum ~ treatment, data = defo_dist[[a]]))
-  }
+library(stargazer)
+naive_reg <- lapply(defo_dist, function(x){
+  lm(formula = loss_sum ~ treatment , data = x)
+})
+stargazer(naive_reg)
 
 #Regression discontinuity 
 
@@ -88,12 +45,17 @@ p <- rdrobust(
   x = defo_dist$dist_disc
 )
 
-rdplot(
-  y = defo_dist$loss_sum,
-  x = defo_dist$dist_disc,
-  binselect = "es",
-  y.lim = c(0, 0.2),
-  ci = T
-)
+setwd("~/Dropbox/BANREP/Deforestacion/Results/RD/Graphs/")
+mapply(function(x, type){
+  pdf(str_c("RD_", type, ".pdf"), height=6, width=12)
+  rdplot(
+    y = x$loss_sum,
+    x = x$dist_disc,
+    y.lim = c(0, 0.2),
+    title = str_c("Regresion discontinuity for", type, sep = " "),
+    x.label = "Distance to national park frontier",
+    y.label = "Deforestation (%)")
+  dev.off()
+}, x = defo_dist, type = c("all parks", "national parks", "regional parks"))
 
 
