@@ -26,7 +26,7 @@ defo <- defo[, (c("loss_year_brick_1km.1","loss_year_brick_1km.14")) := NULL]
 
 # Merge defo to distances by type of area 
 
-areas <- c("all","national","regional")
+areas <- c("all","national","regional", "terr1", "terr2")
 defo_dist <- list()
 
 for(a in areas) {
@@ -40,7 +40,7 @@ for(a in areas) {
   eval(parse(text=paste("write.dta(defo_dist[[\"",a,"\"]],paste0(data,\"defo_panel_",a,".dta\"))", sep="")))
 }
 
-# Merge defo to distances for each area (1-16)
+# Merge defo to distances for each park area (1-16)
 
 defo_dist <- list()
 

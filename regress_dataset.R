@@ -29,7 +29,6 @@ parks <- readOGR(dsn = paste0(parks, "WDPA_Modificado"), layer = "TerritoriosRes
 vars <- c("ID","DESIG","STATUS_YR","GOV_TYPE")
 parks_b <- parks[vars]
 summary(parks_b)
-desig_year <- table(parks_b$DESIG,parks_b$STATUS_YR)
 desig <- table(parks_b$DESIG)
 
 # Distance
@@ -40,6 +39,7 @@ dim(unique(dist,by="ID"))
 # Merge  
 dist_b <- merge(dist, parks_b, by.x="buffer_id", by.y="ID")
 dist_b$DESIG2 <- mapvalues(dist_b$DESIG, levels(dist_b$DESIG), c(1:16))
+dist_b$year <- as.numeric(dist_b$STATUS_YR)
 dim(dist_b)
 
 # pixel by year (stock) and type of park (and also for groups of park types)
@@ -53,9 +53,9 @@ for(y in 2000:2012) {
   
   print(paste0("year ",y))
   dist_yl <- list()
-  eval(parse(text=paste("dist_y <- dist_b[dist_b$STATUS_YR < ",y,",]", sep="")))
+  eval(parse(text=paste("dist_y <- dist_b[dist_b$year < ",y,",]", sep="")))
   print(dim(dist_y))
-  
+
   # For each type 
   for(i in levels(dist_b$DESIG2)){
     print(i)
@@ -95,7 +95,7 @@ for(a in areas) {
   for(y in 2001:2012) {
     print(paste0("year ",y))
     dist_temp <- readRDS(paste0(data,"dist_",y,"_",a,".rds"))
-    dist_temp <- dist_temp[dist_temp$dist<=10000,]
+    dist_temp <- dist_temp[dist_temp$dist<=20000,]
     dist_temp$year <- y
     dist_panel[[y-2000]] <- dist_temp
     }
@@ -116,14 +116,14 @@ for(a in areas) {
 
 # for each area (1-16)
 
-for(a in 1:16) {
+for(a in 3:16) {
   print(paste0("area ",a))
   dist_panel <- list()
   for(y in 2001:2012) {
     print(paste0("year ",y))
     dist_temp <- readRDS(paste0(data,"dist_",y,".rds"))[[a]]
     if ((dim(dist_temp)[1]) > 0){
-      dist_temp <- dist_temp[dist_temp$dist<=10000,]
+      dist_temp <- dist_temp[dist_temp$dist<=20000,]
       dist_temp$year <- y
       dist_panel[[y-2000]] <- dist_temp
     }
@@ -144,6 +144,8 @@ for(a in 1:16) {
   saveRDS(dist_panel, file =  paste0(data,"dist_panel_",a,".rds"))
   }
 }
+
+
 
 
 
