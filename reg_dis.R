@@ -152,34 +152,27 @@ rd_plot_terr <- rdplot(y = (defo_dist_terr[[1]]$loss_sum) * 100,
 
 #Discontinuity plot (ggplot2)
 
-naive_bins <- function(df, running, y){
-  filter(df, running > i & x >= i + 1) %>%
-    mutate(mean_bin = mean(x), sd_bin = sd(x)) %>%
-    .[1, ]
-}
+defo_dist_all <- c(defo_dist, defo_dist_terr)
+
+l <- lapply(defo_dist_all, function(x){
+  mutate(x, bin = cut(x$dist_disc / 1000, breaks = c(-50:50), include.lowest = T)) %>%
+    group_by(bin) %>%
+    summarize(mean_bin = mean(loss_sum), sd_bin = sd(loss_sum), n = length(ID)) %>%
+    .[complete.cases(.),] %>%
+    as.data.frame() %>%
+    mutate(treatment = ifelse(as.numeric(row.names(.)) > 50, 1, 0), bins = row.names(.))
+}) 
 
 
-defo_dist_indi <- defo_dist_terr[[2]] %>%
-  mutate(dist_disc_km = dist_disc / 1000)
-
-l <- lapply(c(-50:49), function(x){
-  defo_dist_indi[defo_dist_indi$dist_disc_km > x & defo_dist_indi$dist_disc_km <= x + 1, ] %>%
-    mutate(mean_bin = mean(loss_sum), sd_bin = sd(loss_sum)) %>%
-    select(mean_bin, sd_bin) %>%
-    .[1, ]
-})
-
-
-bins <- ldply(l) 
-row.names(bins) <- c(-50:-1, 1:50)
-bins$dist_km <- row.names(bins) 
-bins$treatment <- ifelse(bins$dist_km > 0, 1 ,0)
-
-
-
-p <- ggplot(bins, aes(y = (mean_bin * 100), x = as.numeric(dist_km), colour = factor(treatment)))
-p <- p  + stat_smooth(method = "auto") + geom_point(colour = "grey")
-p
-
-
+setwd("~/Dropbox/BANREP/Deforestacion/Results/RD/Graphs/")
+mapply(function(x, type){
+g <- ggplot(x, aes(y = (mean_bin * 100), x = as.numeric(bins), colour = as.factor(treatment))) 
+g <- g + stat_smooth(method = "auto") 
+g <- g + geom_point(colour = "grey")
+g <- g + labs(x = "Distance (Km.)", y = "Deforestation (Ha x Km2)")
+g <- g + ggtitle(str_c("Regression discontinuity estimation\n", "for", type, sep = " "))
+g <- g + guides(colour = FALSE)
+g
+ggsave(str_c("RDggplot_", type, ".pdf"), width=20, height=20, units="cm")
+}, x = l, type = c("all parks", "National parks", "Regional parks", "Resguardos", "Black territories"))
 
