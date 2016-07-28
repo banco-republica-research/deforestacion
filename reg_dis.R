@@ -1,5 +1,5 @@
 
-# Run RD regressions (All, national and regional)
+# Run RD regressions (For parks and territories)
 
 ############################
 
@@ -10,6 +10,7 @@ library(data.table)
 library(rdrobust)
 library(rdd)
 library(stringr)
+library(stargazer)
 library(rddtools)
 
 #Import datasets
@@ -89,14 +90,27 @@ for(i in 1:length(rd_robust_parks)){
 rd_robust_park_table <- ldply(rd_robust_park_table) %>%
   t()
 
+rd_robust_terr_table <- list() #Table of LATE and p-values
+for(i in 1:length(rd_robust_terr)){
+  rd_robust_terr_table[[i]] <- rd_robust_terr[[i]]$tabl3.str[1, ]
+}
+
+rd_robust_terr_table <- ldply(rd_robust_terr_table) %>%
+  t()
+
+rd_robust_table <- cbind(rd_robust_park_table, rd_robust_terr_table) %>%
+stargazer()
+
+
 for(i in 1:length(rd_nonpara_table)){
   rd_nonpara_table[, i] <- as.numeric(rd_nonpara_table[, i])
 }
 
+
 bws_list <- list()
 for(i in 1:length(rd_robust_parks)){
   bws_list[i] <- rd_robust_parks[[i]]$bws[1, 1]
-}
+} %>% plyr::ldply(.)
 
 bws_list_t <- list()
 for(i in 1:length(rd_robust_terr)){
@@ -139,17 +153,6 @@ mapply(function(x, type){
 
 
 
-
-
-rd_plot_terr <- rdplot(y = (defo_dist_terr[[1]]$loss_sum) * 100,
-                       x = (defo_dist_terr[[1]]$dist_disc) / 1000, 
-                       binselect = "es",
-                       kernel = "triangular",
-                       y.lim = c(0, 4),
-                       x.lim = c(-50, 50))
-
-
-
 #Discontinuity plot (ggplot2)
 
 defo_dist_all <- c(defo_dist, defo_dist_terr)
@@ -160,19 +163,22 @@ l <- lapply(defo_dist_all, function(x){
     summarize(mean_bin = mean(loss_sum), sd_bin = sd(loss_sum), n = length(ID)) %>%
     .[complete.cases(.),] %>%
     as.data.frame() %>%
-    mutate(treatment = ifelse(as.numeric(row.names(.)) > 50, 1, 0), bins = row.names(.))
-}) 
+    mutate(treatment = ifelse(as.numeric(row.names(.)) > 50, 1, 0), bins = row.names(.)) %>%
+    mutate(bins = mapvalues(.$bins, from = c(1:100), to = c(-50:49)))
+})
 
 
 setwd("~/Dropbox/BANREP/Deforestacion/Results/RD/Graphs/")
 mapply(function(x, type){
 g <- ggplot(x, aes(y = (mean_bin * 100), x = as.numeric(bins), colour = as.factor(treatment))) 
 g <- g + stat_smooth(method = "auto") 
-g <- g + geom_point(colour = "grey")
+g <- g + geom_point(colour = "black", size = 1)
+g <- g + scale_y_continuous(limits = c(0, 4))
 g <- g + labs(x = "Distance (Km.)", y = "Deforestation (Ha x Km2)")
 g <- g + ggtitle(str_c("Regression discontinuity estimation\n", "for", type, sep = " "))
 g <- g + guides(colour = FALSE)
+g <- g + theme_bw()
 g
-ggsave(str_c("RDggplot_", type, ".pdf"), width=20, height=20, units="cm")
+ggsave(str_c("RDggplot_", type, ".pdf"), width=30, height=20, units="cm")
 }, x = l, type = c("all parks", "National parks", "Regional parks", "Resguardos", "Black territories"))
 
