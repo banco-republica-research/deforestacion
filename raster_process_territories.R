@@ -1,5 +1,7 @@
 
 
+setwd("~/Dropbox/BANREP/Deforestacion/Datos")
+
 #Open shapefiles 
 black_territories <- readOGR(dsn = "Comunidades", layer="Tierras de Comunidades Negras (2015) ")
 indigenous_territories <- readOGR(dsn = "Resguardos", layer="Resguardos Indigenas (2015) ") 
