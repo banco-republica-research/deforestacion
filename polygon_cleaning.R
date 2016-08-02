@@ -8,6 +8,8 @@
 
 library(rgeos)
 library(sp)
+library(compare)
+require(dplyr)
 
 #Create SpatialPlygons objects
 polygon1 <- readWKT("POLYGON((-190 -50, -200 -10, -110 20, -190 -50))")          
@@ -26,14 +28,14 @@ par(mfrow = c(1,1)) #now, simultaneously
 plot(polygon_set, main = "Polygon1 & Polygon2")
 
 
-clip <- gDifference(polygon2, polygon1, byid = TRUE, drop_lower_td = T) #clip polygon 2 with polygon 1
-plot(clip, col = "red", add = T)
+clip <- gIntersection(polygon2, polygon1, byid = TRUE, drop_lower_td = T) #clip polygon 2 with polygon 1
+plot(clip, col = "blue", add = T)
 
 library(ggplot2)                         # as @shayaa commented, ggplot2::fortify is useful.
 
 clip_coords <- fortify(clip)[,1:2]          # or, clip@polygons[[1]]@Polygons[[1]]@coords
 polygon2_coords <- fortify(polygon2)[,1:2]  # or, polygon2@polygons[[1]]@Polygons[[1]]@coords
-duplicated_coords <- merge(clip_coords, polygon2_coords) 
+duplicated_coords <- polygon2_coords[!polygon2_coords %in% clip_coords, ]
 # duplicated_coords is the non-intersecting points of the polygon2
 res <- SpatialPoints(duplicated_coords)
 
@@ -81,106 +83,6 @@ natural_parks <- list(natural_parks, natural_parks_proj) %>%
 buffers_natural_parks_proj <- gBuffer(natural_parks[[2]], byid = T, width = 50000)
 buffers_natural_parks <- spTransform(buffers_natural_parks_proj, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
 
-#Clean polygons
-
-#Create a hole-free shapefile (simplify work)
-BCp <- slot(territories_proj[[1]], "polygons")
-holes <- lapply(BCp, function(x) sapply(slot(x, "Polygons"), slot, "hole")) 
-res <- lapply(1:length(BCp), function(i) slot(BCp[[i]], "Polygons")[!holes[[i]]]) 
-IDs <- row.names(territories_proj[[1]]) 
-black_hole_free <- SpatialPolygons(lapply(1:length(res), function(i) Polygons(res[[i]], ID=IDs[i])), proj4string=CRS(proj4string(territories_proj[[1]]))) 
-
-
-
-list_polygons_proj <- lapply(list_polygons, spTransform, CRS=CRS("+init=epsg:3857"))
-black_points <- territories_proj[[1]] %>% as("SpatialLines") %>% as("SpatialPoints")
-
-list_polygons_clean <- lapply(list_polygons_proj, function(x){
-  #Remove inside points
-  dif <- gDifference(x, black_hole_free, drop_lower_td = T) %>%
-    fortify(dif)[,1:2] #Coordinates difference
-  polygon2_coords <- fortify(x)[,1:2] #Coordinates polygon
-  # Duplicated_coords is the non-intersecting points of the polygon2
-  duplicated_coords <- merge(dif, polygon2_coords) 
-  res <- SpatialPoints(duplicated_coords)
-  
-  #Remove close cofounding treatments
-  knn <- get.knnx(coordinates(black_points), coordinates(res), k = 1, algorithm = "kd_tree") %>%
-    data.frame() 
-  sp <- SpatialPointsDataFrame(x, knn) %>%
-    .[!.@data$nn.dist < 1000]
-})
-
-#Examples: Utria
-plot(list_polygons_proj[[41]])
-plot(p41, add = T)
-plot(black_points, add = T, col = "red")
-vecinos <- get.knnx(coordinates(black_points), coordinates(p41), k = 1, algorithm = "kd_tree") %>%
-  data.frame()
-sp <- SpatialPointsDataFrame(p41, vecinos)
-
-
-#Examples: Río León
-plot(list_polygons_proj[[351]])
-p351 <- list_polygons_proj[[351]] %>% as("SpatialLines") %>% as("SpatialPoints")
-plot(p351, add = T)
-plot(black_points, add = T, col = "red")
-vecinos <- get.knnx(coordinates(black_points), coordinates(p351), k = 1, algorithm = "kd_tree") %>%
-  data.frame()
-sp <- SpatialPointsDataFrame(p351, vecinos)
-plot(sp[sp$nn.dist < 1000, ], add = T, col = "blue")
-
-
-dif <- gDifference(list_polygons_proj[[41]], black_hole_free, byid = T, drop_lower_td = T)
-plot(list_polygons_proj[[41]])
-plot(black_hole_free, add = T, border = "red")
-plot(dif, border = "blue", add = T)
-
-
-clip_coords <- fortify(dif)[,1:2]          # or, clip@polygons[[1]]@Polygons[[1]]@coords
-polygon2_coords <- fortify(list_polygons_proj[[41]])[,1:2]  # or, polygon2@polygons[[1]]@Polygons[[1]]@coords
-duplicated_coords <- merge(clip_coords, polygon2_coords) 
-# duplicated_coords is the non-intersecting points of the polygon2
-res <- SpatialPoints(duplicated_coords)
-plot(res, col="red", pch=19, add=T)
-
-#Example: Río León (función)
-plot(list_polygons_proj[[351]])
-plot(as(as(list_polygons_proj[[351]], "SpatialLines"), "SpatialPoints"), add = T)
-plot(black_points, add = T, col = "red")
-plot(list_polygons_clean[[351]], add = T, col = "blue")
-
-
-######################## VERIFICATION: BUFFERS = POLYGONS ########################
-id1 <-list()
-for(i in c(1:length(natural_parks[[2]]@polygons))){
-  
-  id1[[i]] <- slot(natural_parks[[2]]@polygons[[i]], "ID")
-}
-
-id2 <-list()
-for(i in c(1:length(buffers_natural_parks@polygons))){
-  
-  id2[[i]] <- slot(buffers_natural_parks@polygons[[i]], "ID")
-}
-identical(id1, id2)
-################################################################################
-
-# Get natural park SpatialPolygon atributes by cell number
-deforest_cells <- SpatialPoints(xyFromCell(res[[1]], 1:prod(dim(res[[1]]))), proj4string = CRS(proj4string(natural_parks[[1]])))
-natural_parks_atrb <- deforest_cells %over% natural_parks[[1]]
-natural_parks_atrb$ID <- row.names(natural_parks_atrb)
-natural_parks_atrb <- natural_parks_atrb[complete.cases(natural_parks_atrb[]), ]
-
-#Identify cells inside national parks and buffers and their identifier
-cells_naturalparks <- cellFromPolygon(res[[1]], natural_parks[[1]])
-cells_naturalparks_buffers <- cellFromPolygon(res[[1]], buffers_natural_parks)
-cells <- mapply(function(x, y){ #Remove cells from natural park polygons and list only the buffer pixels
-  x[! x %in% y]
-}, x = cells_naturalparks_buffers, y = cells_naturalparks)
-
-#Mask raster to values indices buffers
-res_mask_natural_parks_buffers <- mask(res[[1]], buffers_natural_parks)
 
 #Create a list of individual polygons per natural park
 natural_parks[[1]]@data$ID <- as.factor(row.names(natural_parks[[1]]@data))
@@ -203,6 +105,154 @@ for(i in buffers_natural_parks@data$ID){
   setTxtProgressBar(pb, i)
 }
 close(pb)
+
+
+######################## VERIFICATION: BUFFERS = POLYGONS ########################
+id1 <-list()
+for(i in c(1:length(natural_parks[[2]]@polygons))){
+  
+  id1[[i]] <- slot(natural_parks[[2]]@polygons[[i]], "ID")
+}
+
+id2 <-list()
+for(i in c(1:length(buffers_natural_parks@polygons))){
+  
+  id2[[i]] <- slot(buffers_natural_parks@polygons[[i]], "ID")
+}
+identical(id1, id2)
+################################################################################
+
+
+#Clean polygons 
+
+#Prepare data
+black_points <- territories_proj[[1]] %>% as("SpatialLines") %>% as("SpatialPoints")
+indigenous_points <- territories_proj[[2]] %>% as("SpatialLines") %>% as("SpatialPoints") 
+list_polygons_proj <- lapply(list_polygons, spTransform, CRS=CRS("+init=epsg:3857"))
+
+#Create a hole-free shapefile (simplify work)
+black_union <- gUnaryUnion(territories_proj[[1]]) 
+BCp <- slot(black_union, "polygons")
+holes <- lapply(BCp, function(x) sapply(slot(x, "Polygons"), slot, "hole")) 
+res <- lapply(1:length(BCp), function(i) slot(BCp[[i]], "Polygons")[!holes[[i]]]) 
+IDs <- row.names(black_union) 
+black_hole_free <- SpatialPolygons(lapply(1:length(res), function(i) Polygons(res[[i]], ID=IDs[i])), proj4string=CRS(proj4string(territories_proj[[1]]))) 
+
+indigenous_union <- gUnaryUnion(territories_proj[[2]]) 
+BCp <- slot(indigenous_union, "polygons")
+holes <- lapply(BCp, function(x) sapply(slot(x, "Polygons"), slot, "hole")) 
+res <- lapply(1:length(BCp), function(i) slot(BCp[[i]], "Polygons")[!holes[[i]]]) 
+IDs <- row.names(black_union) 
+indigenous_hole_free <- SpatialPolygons(lapply(1:length(res), function(i) Polygons(res[[i]], ID=IDs[i])), proj4string=CRS(proj4string(territories_proj[[2]]))) 
+
+
+
+
+
+#Clean SpatialPoints (from polygons of Natural parks) -remove other treatments and get effective boundaries-
+
+clean_treatments <- function(x, polygon, points_sp){
+  if(gIntersects(x, polygon)){
+    #Remove inside points
+    dif <- gDifference(x, polygon, drop_lower_td = T, byid = T)
+    dif <- tidy(dif)[, 1:2] #Coordinates difference
+    polygon2_coords <- tidy(x)[,1:2] #Coordinates polygon
+    # Duplicated_coords is the non-intersecting points of the polygon2
+    duplicated_coords <- anti_join(dif, polygon2_coords) 
+    res <- SpatialPoints(duplicated_coords)
+    
+    #Remove close cofounding treatments
+    knn <- get.knnx(coordinates(points_sp), coordinates(res), k = 1, algorithm = "kd_tree") %>%
+      data.frame() 
+    sp <- SpatialPointsDataFrame(res, knn) %>%
+      .[!.@data$nn.dist < 1000, ]  
+  } else {
+    #Remove close cofounding treatments
+    points <- x %>% as("SpatialLines") %>% as("SpatialPoints")
+    knn <- get.knnx(coordinates(points_sp), coordinates(points), k = 1, algorithm = "kd_tree") %>%
+      data.frame() 
+    sp <- SpatialPointsDataFrame(points, knn) %>%
+      .[!.@data$nn.dist < 2000, ]
+  }
+  
+}
+
+
+list_polygons_clean <- lapply(list_polygons_proj, clean_treatments, polygon = black_hole_free,
+                              points_sp = black_points)
+list_polygons_clean_indigenous <- lapply(list_polygons_proj, clean_treatments, polygon = indigenous_hole_free,
+                                  points_sp = indigenous_points)
+
+
+
+# Does it work?
+plot(list_polygons_clean[[3]])
+plot(list_polygons_proj[[3]], add = T)
+plot(black_hole_free, add = T, col = "red")
+
+plot(list_polygons_proj[[16]])
+plot(list_polygons_clean[[16]], add = T, col = "blue")
+plot(black_hole_free, add = T, border = "red")
+
+
+#Vecinos
+plot(list_polygons_proj[[41]])
+plot(p41, add = T)
+plot(black_points, add = T, col = "red")
+vecinos <- get.knnx(coordinates(black_points), coordinates(p41), k = 1, algorithm = "kd_tree") %>%
+  data.frame()
+sp <- SpatialPointsDataFrame(p41, vecinos)
+
+# Remove overlay polygons
+if(gIntersects(list_polygons_proj[[]], black_hole_free)) {
+  dif <- gDifference(list_polygons_proj[[2]], indigenous_hole_free)
+  clip_coords <- tidy(dif)[, 1:2]          # or, clip@polygons[[1]]@Polygons[[1]]@coords
+  polygon2_coords <- tidy(list_polygons_proj[[2]])[, 1:2]  # or, polygon2@polygons[[1]]@Polygons[[1]]@coords
+  duplicated_coords <- anti_join(clip_coords, polygon2_coords)
+  
+  # duplicated_coords is the non-intersecting points of the polygon2
+  plot(list_polygons_proj[[2]])
+  plot(indigenous_hole_free, add = T, border = "red")
+  plot(dif, border = "blue", add = T)
+  res <- SpatialPoints(duplicated_coords)
+  plot(res, col="red", pch=19, add=T)
+  plot(list_polygons_clean[[349]], add = T, col = "blue")
+  
+  #Remove neighbors in 1 km 
+  vecinos <- get.knnx(coordinates(black_points), coordinates(res), k = 1, algorithm = "kd_tree") %>%
+    data.frame()
+  sp <- SpatialPointsDataFrame(res, vecinos)
+  plot(sp[sp$nn.dist < 1000, ], add = T, col = "blue")
+  
+} else {
+  #Remove neighbors in 1 km 
+  p12 <- list_polygons_proj[[12]] %>% as("SpatialLines") %>% as("SpatialPoints")
+  vecinos <- get.knnx(coordinates(black_points), coordinates(p12), k = 1, algorithm = "kd_tree") %>%
+    data.frame()
+  sp <- SpatialPointsDataFrame(p12, vecinos)
+  plot(sp[sp$nn.dist < 1000, ], add = T, col = "blue")
+  
+  
+}
+
+
+
+
+# Get natural park SpatialPolygon atributes by cell number
+deforest_cells <- SpatialPoints(xyFromCell(res[[1]], 1:prod(dim(res[[1]]))), proj4string = CRS(proj4string(natural_parks[[1]])))
+natural_parks_atrb <- deforest_cells %over% natural_parks[[1]]
+natural_parks_atrb$ID <- row.names(natural_parks_atrb)
+natural_parks_atrb <- natural_parks_atrb[complete.cases(natural_parks_atrb[]), ]
+
+#Identify cells inside national parks and buffers and their identifier
+cells_naturalparks <- cellFromPolygon(res[[1]], natural_parks[[1]])
+cells_naturalparks_buffers <- cellFromPolygon(res[[1]], buffers_natural_parks)
+cells <- mapply(function(x, y){ #Remove cells from natural park polygons and list only the buffer pixels
+  x[! x %in% y]
+}, x = cells_naturalparks_buffers, y = cells_naturalparks)
+
+#Mask raster to values indices buffers
+res_mask_natural_parks_buffers <- mask(res[[1]], buffers_natural_parks)
 
 #Create SpatialPoints object to calculate distances from buffer cells to natural parks boundaries
 list_polygons_p <- lapply(list_polygons, function(x){ 
