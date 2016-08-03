@@ -198,10 +198,9 @@ plot(list_polygons_proj[[603]])
 plot(list_polygons_clean[[603]], add = T, col = "blue")
 plot(black_hole_free, add = T, border = "red")
 
-plot(list_polygons_proj[[29]])
-plot(list_polygons_clean_indigenous[[29]], add = T, col = "blue")
+plot(list_polygons_proj[[44]])
 plot(indigenous_hole_free, add = T, border = "red")
-
+plot(list_polygons_clean_indigenous[[44]], add = T, col = "blue")
 
 #Vecinos
 plot(list_polygons_proj[[41]])
