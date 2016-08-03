@@ -152,7 +152,11 @@ indigenous_hole_free <- SpatialPolygons(lapply(1:length(res), function(i) Polygo
 #Clean SpatialPoints (from polygons of Natural parks) -remove other treatments and get effective boundaries-
 
 clean_treatments <- function(x, polygon, points_sp){
-  if(gIntersects(x, polygon)){
+  print(x$ID)
+  if(gContains(polygon, x)){
+    return(0)
+  }
+  else if(gIntersects(x, polygon)){
     #Remove inside points
     dif <- gDifference(x, polygon, drop_lower_td = T, byid = T)
     dif <- tidy(dif)[, 1:2] #Coordinates difference
@@ -186,13 +190,17 @@ list_polygons_clean_indigenous <- lapply(list_polygons_proj, clean_treatments, p
 
 
 # Does it work?
-plot(list_polygons_clean[[3]])
+plot(list_polygons_clean[[3]], border = "blue")
 plot(list_polygons_proj[[3]], add = T)
 plot(black_hole_free, add = T, col = "red")
 
-plot(list_polygons_proj[[16]])
-plot(list_polygons_clean[[16]], add = T, col = "blue")
+plot(list_polygons_proj[[603]])
+plot(list_polygons_clean[[603]], add = T, col = "blue")
 plot(black_hole_free, add = T, border = "red")
+
+plot(list_polygons_proj[[29]])
+plot(list_polygons_clean_indigenous[[29]], add = T, col = "blue")
+plot(indigenous_hole_free, add = T, border = "red")
 
 
 #Vecinos
@@ -203,15 +211,20 @@ vecinos <- get.knnx(coordinates(black_points), coordinates(p41), k = 1, algorith
   data.frame()
 sp <- SpatialPointsDataFrame(p41, vecinos)
 
+
+test <- sapply(list_polygons_proj, function(x){
+  gContains(black_hole_free, x)
+})
+
 # Remove overlay polygons
 if(gIntersects(list_polygons_proj[[]], black_hole_free)) {
-  dif <- gDifference(list_polygons_proj[[2]], indigenous_hole_free)
-  clip_coords <- tidy(dif)[, 1:2]          # or, clip@polygons[[1]]@Polygons[[1]]@coords
-  polygon2_coords <- tidy(list_polygons_proj[[2]])[, 1:2]  # or, polygon2@polygons[[1]]@Polygons[[1]]@coords
+  dif <- gDifference(list_polygons_proj[[38]], indigenous_hole_free)
+  clip_coords <- fortify(dif)[, 1:2]          # or, clip@polygons[[1]]@Polygons[[1]]@coords
+  polygon2_coords <- tidy(list_polygons_proj[[37]])[, 1:2]  # or, polygon2@polygons[[1]]@Polygons[[1]]@coords
   duplicated_coords <- anti_join(clip_coords, polygon2_coords)
   
   # duplicated_coords is the non-intersecting points of the polygon2
-  plot(list_polygons_proj[[2]])
+  plot(list_polygons_proj[[38]])
   plot(indigenous_hole_free, add = T, border = "red")
   plot(dif, border = "blue", add = T)
   res <- SpatialPoints(duplicated_coords)
