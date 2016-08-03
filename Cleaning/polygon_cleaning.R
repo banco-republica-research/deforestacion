@@ -9,7 +9,10 @@
 library(rgeos)
 library(sp)
 library(compare)
-require(dplyr)
+library(dplyr)
+library(plyr)
+library(magrittr)
+library(raster)
 
 #Create SpatialPlygons objects
 polygon1 <- readWKT("POLYGON((-190 -50, -200 -10, -110 20, -190 -50))")          
@@ -58,6 +61,7 @@ library(plyr)
 library(grid)
 library(FNN)
 library(dplyr)
+library(broom)
 library(stringr)
 
 setwd("/Volumes/LaCie/Deforestacion/Hansen")
@@ -68,16 +72,29 @@ setwd("~/Dropbox/BANREP/Deforestacion/Datos/UNEP")
 natural_parks <- readOGR(dsn = "WDPA_June2016_COL-shapefile", layer = "WDPA_June2016_COL-shapefile-polygons")
 natural_parks_proj <- spTransform(natural_parks, CRS=CRS("+init=epsg:3857")) #Projection in meters
 
-#Remove NP that are out of continental land (Malpelo and Providencia)
+#Remove NP that are out of continental land and parks after 2012
 natural_parks <- list(natural_parks, natural_parks_proj) %>%
   lapply(., function(x){
     x[!(x@data$NAME %in% c("Malpelo Fauna and Flora Sanctuary", 
                            "Old Providence Mc Bean Lagoon",
                            "Malpelo",
                            "Jhonny Cay Regional Park",
-                           "The Peak Regional Park")), ]
-  })
+                           "The Peak Regional Park",
+                           "Corales De Profundidad",
+                           "Los Corales Del Rosario Y De San Bernardo",
+                           "Gorgona",
+                           "Acandi Playon Y Playona",
+                           "Uramba Bahia Malaga")) & !x@data$STATUS_YR > 2012 , ]
+      
+    
+  }) %>%
+  #Remove sections of park outside continental Colombia
+  mapply(function(x, y){
+    raster::intersect(y, x)
+    }, x = . , y = colombia_municipios)
 
+setwd("~/Dropbox/BANREP/Deforestacion/Datos/UNEP")
+writeOGR(obj = natural_parks[[2]], dsn = "WDPA_Modificado" , layer = "intersect", driver = "ESRI Shapefile", overwrite_layer = TRUE)
 
 #Buffers to asses "treatment zones" of 50 km 
 buffers_natural_parks_proj <- gBuffer(natural_parks[[2]], byid = T, width = 50000)
@@ -125,12 +142,25 @@ identical(id1, id2)
 
 #Clean polygons 
 
+setwd("~/Dropbox/BANREP/Deforestacion/Datos")
+
+#Open shapefiles 
+black_territories <- readOGR(dsn = "Comunidades", layer="Tierras de Comunidades Negras (2015) ")
+indigenous_territories <- readOGR(dsn = "Resguardos", layer="Resguardos Indigenas (2015) ") 
+territories <- list(black_territories, indigenous_territories) %>%
+  lapply(spTransform, CRS=CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+
+territories_proj <- lapply(territories, spTransform, CRS=CRS("+init=epsg:3857")) #Projection in meters
+
 #Prepare data
 black_points <- territories_proj[[1]] %>% as("SpatialLines") %>% as("SpatialPoints")
 indigenous_points <- territories_proj[[2]] %>% as("SpatialLines") %>% as("SpatialPoints") 
 list_polygons_proj <- lapply(list_polygons, spTransform, CRS=CRS("+init=epsg:3857"))
 
-#Create a hole-free shapefile (simplify work)
+#Eliminate close to water (from colombia_raster.R)
+colombia_municipios_p <- colombia_municipios[[2]] %>% as("SpatialLines") %>% as("SpatialPoints")
+ 
+#Create a hole-free shapefile (simplify work) [Roger Bivand great function to remove hole slot for each polygon]
 black_union <- gUnaryUnion(territories_proj[[1]]) 
 BCp <- slot(black_union, "polygons")
 holes <- lapply(BCp, function(x) sapply(slot(x, "Polygons"), slot, "hole")) 
@@ -147,11 +177,9 @@ indigenous_hole_free <- SpatialPolygons(lapply(1:length(res), function(i) Polygo
 
 
 
-
-
 #Clean SpatialPoints (from polygons of Natural parks) -remove other treatments and get effective boundaries-
 
-clean_treatments <- function(x, polygon, points_sp){
+clean_treatments <- function(x, polygon, points_sp, points_border){
   print(x$ID)
   if(gContains(polygon, x)){
     return(0)
@@ -167,40 +195,74 @@ clean_treatments <- function(x, polygon, points_sp){
     
     #Remove close cofounding treatments
     knn <- get.knnx(coordinates(points_sp), coordinates(res), k = 1, algorithm = "kd_tree") %>%
-      data.frame() 
+      data.frame(.) 
     sp <- SpatialPointsDataFrame(res, knn) %>%
-      .[!.@data$nn.dist < 1000, ]  
+      .[!.@data$nn.dist < 2000, ]
+    knn_border <- get.knnx(coordinates(points_border), coordinates(sp), k = 1, algorithm = "kd_tree") %>%
+      data.frame(.)
+    sp_final <- SpatialPointsDataFrame(sp, knn_border) %>%
+      .[!.@data$nn.dist < 1000, ] 
+    
   } else {
     #Remove close cofounding treatments
     points <- x %>% as("SpatialLines") %>% as("SpatialPoints")
     knn <- get.knnx(coordinates(points_sp), coordinates(points), k = 1, algorithm = "kd_tree") %>%
       data.frame() 
     sp <- SpatialPointsDataFrame(points, knn) %>%
-      .[!.@data$nn.dist < 2000, ]
+      .[!.@data$nn.dist < 2000, ] 
+      knn_border <- get.knnx(coordinates(points_border), coordinates(sp), k = 1, algorithm = "kd_tree") %>%
+      data.frame(.)
+    sp_final <- SpatialPointsDataFrame(sp, knn_border) %>%
+      .[!.@data$nn.dist < 1000, ] 
   }
   
 }
 
-
+#Clean natural parks from black communitary lands
 list_polygons_clean <- lapply(list_polygons_proj, clean_treatments, polygon = black_hole_free,
-                              points_sp = black_points)
-list_polygons_clean_indigenous <- lapply(list_polygons_proj, clean_treatments, polygon = indigenous_hole_free,
-                                  points_sp = indigenous_points)
+                              points_sp = black_points, points_border = colombia_municipios_p)
 
+#Clean natural parks from indigenous resguardos
+list_polygons_clean_indigenous <- lapply(list_polygons_proj, clean_treatments, polygon = indigenous_hole_free,
+                                  points_sp = indigenous_points, points_border = colombia_municipios_p)
+
+#Clean natural parks from both (create the union between borth territories)
+black_hole_free <- spChFIDs(black_hole_free, paste("b", row.names(black_hole_free), sep="."))
+territories_merge <- rbind(indigenous_hole_free, black_hole_free) %>%
+  
+
+
+
+territories_merge_p <- territories_merge %>% as("SpatialLines") %>% as("SpatialPoints") 
+
+
+
+
+territories_merge2 <- readOGR(dsn = "Union", layer = "Territories_union") %>%
+  spTransform(CRS=CRS("+init=epsg:3857"))
+
+
+list_polygons_clean_all <- lapply(list_polygons_proj, clean_treatments, polygon = territories_merge,
+                                         points_sp = territories_merge_p, points_border = colombia_municipios_p)
+
+table(sapply(list_polygons_proj, function(x){
+  gContains(territories_merge2, x)
+}))
 
 
 # Does it work?
+#Communitary black lands
 plot(list_polygons_clean[[3]], border = "blue")
 plot(list_polygons_proj[[3]], add = T)
 plot(black_hole_free, add = T, col = "red")
 
-plot(list_polygons_proj[[603]])
-plot(list_polygons_clean[[603]], add = T, col = "blue")
+plot(list_polygons_proj[[45]])
+plot(list_polygons_clean[[45]], add = T, col = "blue")
 plot(black_hole_free, add = T, border = "red")
 
-plot(list_polygons_proj[[44]])
+plot(list_polygons_proj[[10]])
 plot(indigenous_hole_free, add = T, border = "red")
-plot(list_polygons_clean_indigenous[[44]], add = T, col = "blue")
+plot(list_polygons_clean_indigenous[[10]], add = T, col = "blue")
 
 #Vecinos
 plot(list_polygons_proj[[41]])
@@ -217,24 +279,31 @@ test <- sapply(list_polygons_proj, function(x){
 
 # Remove overlay polygons
 if(gIntersects(list_polygons_proj[[]], black_hole_free)) {
-  dif <- gDifference(list_polygons_proj[[38]], indigenous_hole_free)
+  dif <- gDifference(list_polygons_proj[[603]], black_hole_free)
   clip_coords <- fortify(dif)[, 1:2]          # or, clip@polygons[[1]]@Polygons[[1]]@coords
-  polygon2_coords <- tidy(list_polygons_proj[[37]])[, 1:2]  # or, polygon2@polygons[[1]]@Polygons[[1]]@coords
+  polygon2_coords <- tidy(list_polygons_proj[[603]])[, 1:2]  # or, polygon2@polygons[[1]]@Polygons[[1]]@coords
   duplicated_coords <- anti_join(clip_coords, polygon2_coords)
   
   # duplicated_coords is the non-intersecting points of the polygon2
-  plot(list_polygons_proj[[38]])
-  plot(indigenous_hole_free, add = T, border = "red")
+  plot(list_polygons_proj[[603]])
+  plot(black_hole_free, add = T, border = "red")
   plot(dif, border = "blue", add = T)
   res <- SpatialPoints(duplicated_coords)
   plot(res, col="red", pch=19, add=T)
   plot(list_polygons_clean[[349]], add = T, col = "blue")
   
   #Remove neighbors in 1 km 
-  vecinos <- get.knnx(coordinates(black_points), coordinates(res), k = 1, algorithm = "kd_tree") %>%
-    data.frame()
-  sp <- SpatialPointsDataFrame(res, vecinos)
-  plot(sp[sp$nn.dist < 1000, ], add = T, col = "blue")
+  p603 <- list_polygons_proj[[603]] %>% as("SpatialLines") %>% as("SpatialPoints")
+  
+  vecinos <- get.knnx(coordinates(black_points), coordinates(p603), k = 1, algorithm = "kd_tree") %>%
+    data.frame(.)
+  sp <- SpatialPointsDataFrame(p603, vecinos) %>%
+  .[!.$nn.dist < 1000, ]
+  vecinos_border <- get.knnx(coordinates(colombia_municipios_p), coordinates(sp), k = 1, algorithm = "kd_tree") %>%
+    data.frame(.)
+  sp_final <- SpatialPointsDataFrame(sp, vecinos_border) %>%
+  .[!.@data$nn.dist < 1000, ] 
+  plot(sp_final, col = "red", pch = 19, add = T)
   
 } else {
   #Remove neighbors in 1 km 
@@ -244,10 +313,7 @@ if(gIntersects(list_polygons_proj[[]], black_hole_free)) {
   sp <- SpatialPointsDataFrame(p12, vecinos)
   plot(sp[sp$nn.dist < 1000, ], add = T, col = "blue")
   
-  
 }
-
-
 
 
 # Get natural park SpatialPolygon atributes by cell number

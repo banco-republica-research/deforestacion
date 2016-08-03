@@ -30,7 +30,11 @@ IDs <- row.names(colombia_municipios)
 colombia_municipios <- SpatialPolygons(lapply(1:length(res), function(i) Polygons(res[[i]], ID=IDs[i])), proj4string=CRS(proj4string(colombia_municipios))) 
 
 
-#Get nightlight data
+#Proyect to meters
+colombia_municipios_proj <- spTransform(colombia_municipios, CRS=CRS("+init=epsg:3857"))
+colombia_municipios <- list(colombia_municipios, colombia_municipios_proj)
+
+#Get nightlight data (only to make a raster with the same specifications)
 processing_rasters <- function(layer.list, ext, shape){
   layer.list %>%
     lapply(setExtent, ext) %>%

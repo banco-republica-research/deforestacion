@@ -5,10 +5,17 @@ setwd("~/Dropbox/BANREP/Deforestacion/Datos")
 #Open shapefiles 
 black_territories <- readOGR(dsn = "Comunidades", layer="Tierras de Comunidades Negras (2015) ")
 indigenous_territories <- readOGR(dsn = "Resguardos", layer="Resguardos Indigenas (2015) ") 
+colnames(indigenous_territories@data)[8] <- "RESOLUCION"
 territories <- list(black_territories, indigenous_territories) %>%
   lapply(spTransform, CRS=CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+territories_proj <- lapply(territories, spTransform, CRS=CRS("+init=epsg:3857")) %>% #Projection in meters
+  lapply(., function(x){
+    x@data <- mutate(x@data, year = str_replace_all(str_extract(x@data$"RESOLUCION", "[-][1-2][0, 9][0-9][0-9]"), "-", ""))
+    return(x)
+  })
 
-territories_proj <- lapply(territories, spTransform, CRS=CRS("+init=epsg:3857")) #Projection in meters
+
+
 
 #Buffers to asses "treatment zones" of 50 km 
 buffers_territories <- lapply(territories_proj, gBuffer, byid = T, width = 50000) %>%
