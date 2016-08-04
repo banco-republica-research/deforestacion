@@ -142,15 +142,21 @@ identical(id1, id2)
 
 #Clean polygons 
 
+#Open shapefiles 
 setwd("~/Dropbox/BANREP/Deforestacion/Datos")
 
-#Open shapefiles 
-black_territories <- readOGR(dsn = "Comunidades", layer="Tierras de Comunidades Negras (2015) ")
-indigenous_territories <- readOGR(dsn = "Resguardos", layer="Resguardos Indigenas (2015) ") 
+#Open shapefiles (only keep those territories after 2012)
+black_territories <- readOGR(dsn = "Comunidades", layer="Tierras de Comunidades Negras (2015)")
+indigenous_territories <- readOGR(dsn = "Resguardos", layer="Resguardos Indigenas (2015)") 
+colnames(indigenous_territories@data)[8] <- "RESOLUCION"
 territories <- list(black_territories, indigenous_territories) %>%
   lapply(spTransform, CRS=CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+territories_proj <- lapply(territories, spTransform, CRS=CRS("+init=epsg:3857")) %>% #Projection in meters
+  lapply(., function(x){
+    x@data <- mutate(x@data, year = str_replace_all(str_extract(x@data$"RESOLUCION", "[-][1-2][0, 9][0-9][0-9]"), "-", ""))
+    return(x[!as.numeric(x@data$year) > 2012, ])
+    })
 
-territories_proj <- lapply(territories, spTransform, CRS=CRS("+init=epsg:3857")) #Projection in meters
 
 #Prepare data
 black_points <- territories_proj[[1]] %>% as("SpatialLines") %>% as("SpatialPoints")
@@ -161,30 +167,21 @@ list_polygons_proj <- lapply(list_polygons, spTransform, CRS=CRS("+init=epsg:385
 colombia_municipios_p <- colombia_municipios[[2]] %>% as("SpatialLines") %>% as("SpatialPoints")
  
 #Create a hole-free shapefile (simplify work) [Roger Bivand great function to remove hole slot for each polygon]
-black_union <- gUnaryUnion(territories_proj[[1]]) 
-BCp <- slot(black_union, "polygons")
-holes <- lapply(BCp, function(x) sapply(slot(x, "Polygons"), slot, "hole")) 
-res <- lapply(1:length(BCp), function(i) slot(BCp[[i]], "Polygons")[!holes[[i]]]) 
-IDs <- row.names(black_union) 
-black_hole_free <- SpatialPolygons(lapply(1:length(res), function(i) Polygons(res[[i]], ID=IDs[i])), proj4string=CRS(proj4string(territories_proj[[1]]))) 
+territories_hole_free <- lapply(territories_proj, function(x){
+  BCp <- slot(x, "polygons")
+  holes <- lapply(BCp, function(y) sapply(slot(y, "Polygons"), slot, "hole")) 
+  res <- lapply(1:length(BCp), function(i) slot(BCp[[i]], "Polygons")[!holes[[i]]]) 
+  IDs <- row.names(x) 
+  return(SpatialPolygons(lapply(1:length(res), function(i) Polygons(res[[i]], ID=IDs[i])), proj4string=CRS(proj4string(x))))
+})
 
-indigenous_union <- gUnaryUnion(territories_proj[[2]]) 
-BCp <- slot(indigenous_union, "polygons")
-holes <- lapply(BCp, function(x) sapply(slot(x, "Polygons"), slot, "hole")) 
-res <- lapply(1:length(BCp), function(i) slot(BCp[[i]], "Polygons")[!holes[[i]]]) 
-IDs <- row.names(black_union) 
-indigenous_hole_free <- SpatialPolygons(lapply(1:length(res), function(i) Polygons(res[[i]], ID=IDs[i])), proj4string=CRS(proj4string(territories_proj[[2]]))) 
-
-
+territories_union <- lapply(territories_hole_free, gUnaryUnion)
 
 #Clean SpatialPoints (from polygons of Natural parks) -remove other treatments and get effective boundaries-
 
 clean_treatments <- function(x, polygon, points_sp, points_border){
   print(x$ID)
-  if(gContains(polygon, x)){
-    return(0)
-  }
-  else if(gIntersects(x, polygon)){
+  if(gIntersects(x, polygon)){
     #Remove inside points
     dif <- gDifference(x, polygon, drop_lower_td = T, byid = T)
     dif <- tidy(dif)[, 1:2] #Coordinates difference
@@ -227,19 +224,20 @@ list_polygons_clean_indigenous <- lapply(list_polygons_proj, clean_treatments, p
                                   points_sp = indigenous_points, points_border = colombia_municipios_p)
 
 #Clean natural parks from both (create the union between borth territories)
-black_hole_free <- spChFIDs(black_hole_free, paste("b", row.names(black_hole_free), sep="."))
-territories_merge <- rbind(indigenous_hole_free, black_hole_free) %>%
-  
+territories_merge <- territories_hole_free %>%
+  lapply(function(x){
+    gBuffer(x, byid = T, width = 0) %>%
+      gSimplify(., tol = 0.0001)
+  })
+
+
+territories_merge[[2]] <- spChFIDs(territories_merge[[2]], paste("b", row.names(territories_merge[[2]]), sep="."))
+territories_merge <- raster::union(territories_merge[[1]], territories_merge[[2]])
 
 
 
 territories_merge_p <- territories_merge %>% as("SpatialLines") %>% as("SpatialPoints") 
 
-
-
-
-territories_merge2 <- readOGR(dsn = "Union", layer = "Territories_union") %>%
-  spTransform(CRS=CRS("+init=epsg:3857"))
 
 
 list_polygons_clean_all <- lapply(list_polygons_proj, clean_treatments, polygon = territories_merge,
@@ -260,9 +258,9 @@ plot(list_polygons_proj[[45]])
 plot(list_polygons_clean[[45]], add = T, col = "blue")
 plot(black_hole_free, add = T, border = "red")
 
-plot(list_polygons_proj[[10]])
-plot(indigenous_hole_free, add = T, border = "red")
-plot(list_polygons_clean_indigenous[[10]], add = T, col = "blue")
+plot(list_polygons_proj[[39]])
+plot(territories_merge, add = T, border = "red")
+plot(list_polygons_clean_all[[39]], add = T, col = "blue")
 
 #Vecinos
 plot(list_polygons_proj[[41]])
