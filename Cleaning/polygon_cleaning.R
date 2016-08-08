@@ -151,16 +151,18 @@ clean_treatments <- function(x, polygon, points_sp, points_border){
     polygon2_coords <- tidy(x)[,1:2] #Coordinates polygon
     # Duplicated_coords is the non-intersecting points of the polygon2
     duplicated_coords <- anti_join(dif, polygon2_coords) 
-    res <- SpatialPoints(duplicated_coords)
+    res <- SpatialPoints(duplicated_coords, proj4string = CRS("+init=epsg:3857"))
+    } else {
+      return(0)
     }
     #Remove close cofounding treatments
     knn <- get.knnx(coordinates(points_sp), coordinates(res), k = 1, algorithm = "kd_tree") %>%
       data.frame(.) 
-    sp <- SpatialPointsDataFrame(res, knn) %>%
+    sp <- SpatialPointsDataFrame(res, knn, proj4string = CRS("+init=epsg:3857")) %>%
       .[!.@data$nn.dist < 2000, ]
     knn_border <- get.knnx(coordinates(points_border), coordinates(sp), k = 1, algorithm = "kd_tree") %>%
       data.frame(.)
-    sp_final <- SpatialPointsDataFrame(sp, knn_border) %>%
+    sp_final <- SpatialPointsDataFrame(sp, knn_border, proj4string = CRS("+init=epsg:3857")) %>%
       .[!.@data$nn.dist < 1000, ] 
     
   } else {
@@ -168,11 +170,11 @@ clean_treatments <- function(x, polygon, points_sp, points_border){
     points <- x %>% as("SpatialLines") %>% as("SpatialPoints")
     knn <- get.knnx(coordinates(points_sp), coordinates(points), k = 1, algorithm = "kd_tree") %>%
       data.frame() 
-    sp <- SpatialPointsDataFrame(points, knn) %>%
+    sp <- SpatialPointsDataFrame(points, knn, proj4string = CRS("+init=epsg:3857")) %>%
       .[!.@data$nn.dist < 2000, ] 
       knn_border <- get.knnx(coordinates(points_border), coordinates(sp), k = 1, algorithm = "kd_tree") %>%
       data.frame(.)
-    sp_final <- SpatialPointsDataFrame(sp, knn_border) %>%
+    sp_final <- SpatialPointsDataFrame(sp, knn_border, proj4string = CRS("+init=epsg:3857")) %>%
       .[!.@data$nn.dist < 1000, ] 
   }
   
@@ -199,81 +201,28 @@ territories_merge <- territories_dissolve %>%
   })
 
 territories_merge <- raster::union(territories_merge[[1]], territories_merge[[2]])
+territories_merge_p <- rbind(black_points, indigenous_points)
+
+
 list_polygons_clean_all <- lapply(list_polygons_proj, clean_treatments, polygon = territories_merge,
                                          points_sp = territories_merge_p, points_border = colombia_municipios_p)
 
-valid <- sapply(list_polygons_proj, function(x){
-  gCovers(territories_merge, x)
+
+#Reproject list to raster projection (WGS84)
+list_polygons_clean_all_proj <- lapply(list_polygons_clean_all, function(x){
+  if(typeof(x) == "S4" & length(x) > 0){
+    sp <- spTransform(x, CRS = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+    return(sp)
+  } else { 
+  return(0)
+  }
 })
-
+  
 # Does it work?
-#Communitary black lands
-plot(list_polygons_clean[[3]], border = "blue")
-plot(list_polygons_proj[[3]], add = T)
-plot(black_hole_free, add = T, col = "red")
-
-plot(list_polygons_proj[[45]])
-plot(list_polygons_clean[[45]], add = T, col = "blue")
-plot(black_hole_free, add = T, border = "red")
-
-plot(list_polygons_proj[[392]])
-plot(territories_union[[1]], add = T, border = "red")
-plot(territories_union[[2]], add = T, border = "orange")
-plot(list_polygons_clean_all[[392]], add = T, col = "blue")
-
-#Vecinos
-
-
-plot(black_points, add = T, col = "red")
-vecinos <- get.knnx(coordinates(black_points), coordinates(p41), k = 1, algorithm = "kd_tree") %>%
-  data.frame()
-sp <- SpatialPointsDataFrame(p41, vecinos)
-
-
-
-
-# Remove overlay polygons
-if(gIntersects(list_polygons_proj[[39]], black_hole_free)) {
-  dif <- gDifference(list_polygons_proj[[93]], territories_merge)
-  clip_coords <- fortify(dif)[, 1:2]          # or, clip@polygons[[1]]@Polygons[[1]]@coords
-  polygon2_coords <- tidy(list_polygons_proj[[93]])[, 1:2]  # or, polygon2@polygons[[1]]@Polygons[[1]]@coords
-  duplicated_coords <- anti_join(clip_coords, polygon2_coords)
-  
-  # duplicated_coords is the non-intersecting points of the polygon2
-  plot(list_polygons_proj[[194]])
-  plot(territories_union[[1]], add = T, border = "red")
-  plot(territories_union[[2]], add = T, border = "orange")
-  plot(dif, add = T, border = "blue")
-  res <- SpatialPoints(duplicated_coords)
-  plot(list_polygons_clean_all[[194]], col="red", pch=19, add=T)
-  
-  dif <- gDifference(res, territories_hole_free[[1]])
-  clip_coords <- data.frame(lang = coordinates(dif)[,1], lat = coordinates(dif)[, 2])        # or, clip@polygons[[1]]@Polygons[[1]]@coords
-  polygon2_coords <- data.frame(lang = coordinates(res)[,1], lat = coordinates(res)[, 2]) # or, polygon2@polygons[[1]]@Polygons[[1]]@coords
-  duplicated_coords <- merge(clip_coords, polygon2_coords)
-  
-  #Remove neighbors in 1 km 
-  p93 <- list_polygons_proj[[93]] %>% as("SpatialLines") %>% as("SpatialPoints")
-  
-  vecinos1 <- get.knnx(coordinates(territories_merge_p), coordinates(res), k = 1, algorithm = "kd_tree") %>%
-    data.frame(.)
-  sp <- SpatialPointsDataFrame(res, vecinos1) %>%
-  .[!.$nn.dist < 1000, ]
-  vecinos_border <- get.knnx(coordinates(colombia_municipios_p), coordinates(sp), k = 1, algorithm = "kd_tree") %>%
-    data.frame(.)
-  sp_final <- SpatialPointsDataFrame(sp, vecinos_border) %>%
-  .[!.@data$nn.dist < 1000, ] 
-  plot(sp_final, col = "blue", pch = 19, add = T)
-  
-} else {
-  #Remove neighbors in 1 km 
-  p12 <- list_polygons_proj[[12]] %>% as("SpatialLines") %>% as("SpatialPoints")
-  vecinos <- get.knnx(coordinates(black_points), coordinates(p12), k = 1, algorithm = "kd_tree") %>%
-    data.frame()
-  sp <- SpatialPointsDataFrame(p12, vecinos)
-  plot(sp[sp$nn.dist < 1000, ], add = T, col = "blue")
-  
-}
+plot(list_polygons_proj[[60]])
+plot(territories_proj[[1]], add = T, border = "red")
+plot(territories_proj[[2]], add = T, border = "orange")
+plot(list_polygons_clean_all[[60]], col="red", pch=19, add=T)
 
 
 # Get natural park SpatialPolygon atributes by cell number
@@ -292,17 +241,11 @@ cells <- mapply(function(x, y){ #Remove cells from natural park polygons and lis
 #Mask raster to values indices buffers
 res_mask_natural_parks_buffers <- mask(res[[1]], buffers_natural_parks)
 
-#Create SpatialPoints object to calculate distances from buffer cells to natural parks boundaries
-list_polygons_p <- lapply(list_polygons, function(x){ 
-  x %>%
-    as("SpatialLines") %>%
-    as("SpatialPoints")})
-
 #Calculate distances (functional loop - use a mlaply if too slow)
 rasterOptions(tmpdir = "/Volumes/LaCie/Deforestacion/Hansen/Temp")
 
 calculate_distances_parallel <- function(buffer, points){
-  if(length(points > 0)){
+  if(length(points)  > 2 & typeof(points) == "S4"){
   crop(res_mask_natural_parks_buffers, buffer) %>%
     mask(buffer) %>%
     clusterR(.,distanceFromPoints, args = list(xy = points)) %>%
@@ -313,16 +256,16 @@ calculate_distances_parallel <- function(buffer, points){
 }
 
 beginCluster()
-system.time(mask <- mapply(calculate_distances_parallel,
+system.time(mask_distance <- mapply(calculate_distances_parallel,
                            buffer = list_polygons_buffers, 
-                           points = list_polygons_p))
+                           points = list_polygons_clean_all_proj))
 endCluster()
 
 stack_distances <- stack(mask)
 
 ###################################### EXTRACT #################################################
 #1. Extract distance as data frame per buffer (list element)
-list_dataframes <- pblapply(mask, as.data.frame, xy = T, na.rm = T)
+list_dataframes <- pblapply(mask_distance, as.data.frame, xy = T, na.rm = T)
 
 #2. Extract row names (id cells)
 list_dataframes <- pblapply(list_dataframes, function(x){
