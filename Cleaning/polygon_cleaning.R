@@ -1,53 +1,10 @@
 ##############################################################################################
 ##############################################################################################
 ###                                                                                        ###
-###                                         TEST                                           ###
+###                          CLEANING AND DISTANCE CALCULATION                             ###
 ###                                                                                        ###
 ##############################################################################################
 ##############################################################################################
-
-library(rgeos)
-library(sp)
-library(compare)
-library(dplyr)
-library(plyr)
-library(magrittr)
-library(raster)
-
-#Create SpatialPlygons objects
-polygon1 <- readWKT("POLYGON((-190 -50, -200 -10, -110 20, -190 -50))")          
-#polygon 1
-polygon2 <- readWKT("POLYGON((-180 -20, -140 55, 10 0, -140 -60, -180 -20))") #polygon 2
-
-#Plot both polygons
-par(mfrow = c(1,2)) #in separate windows
-plot(polygon1, main = "Polygon1") #window 1
-plot(polygon2, main = "Polygon2") #window 2
-
-polygon_set <- readWKT(paste("POLYGON((-180 -20, -140 55, 10 0, -140 -60, -180 -20),",
-                             "(-190 -50, -200 -10, -110 20, -190 -50))"))
-
-par(mfrow = c(1,1)) #now, simultaneously
-plot(polygon_set, main = "Polygon1 & Polygon2")
-
-
-clip <- gIntersection(polygon2, polygon1, byid = TRUE, drop_lower_td = T) #clip polygon 2 with polygon 1
-plot(clip, col = "blue", add = T)
-
-library(ggplot2)                         # as @shayaa commented, ggplot2::fortify is useful.
-
-clip_coords <- fortify(clip)[,1:2]          # or, clip@polygons[[1]]@Polygons[[1]]@coords
-polygon2_coords <- fortify(polygon2)[,1:2]  # or, polygon2@polygons[[1]]@Polygons[[1]]@coords
-duplicated_coords <- polygon2_coords[!polygon2_coords %in% clip_coords, ]
-# duplicated_coords is the non-intersecting points of the polygon2
-res <- SpatialPoints(duplicated_coords)
-
-plot(clip)
-plot(res, col="red", pch=19, add=T)
-
-
-
-##################################### CORRECTION ###########################################
 
 library(raster)
 library(rgdal)
@@ -84,7 +41,7 @@ natural_parks <- list(natural_parks, natural_parks_proj) %>%
                            "Los Corales Del Rosario Y De San Bernardo",
                            "Gorgona",
                            "Acandi Playon Y Playona",
-                           "Uramba Bahia Malaga")) & !x@data$STATUS_YR > 2012 , ]
+                           "Uramba Bahia Malaga")) & !x@data$STATUS_YR > 2012 & !x@data$GIS_AREA < 1 , ]
       
     
   }) %>%
@@ -94,7 +51,7 @@ natural_parks <- list(natural_parks, natural_parks_proj) %>%
     }, x = . , y = colombia_municipios)
 
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/UNEP")
-writeOGR(obj = natural_parks[[2]], dsn = "WDPA_Modificado" , layer = "intersect", driver = "ESRI Shapefile", overwrite_layer = TRUE)
+writeOGR(obj = natural_parks[[2]], dsn = "WDPA_Modificado" , layer = "WDPA_clean", driver = "ESRI Shapefile", overwrite_layer = TRUE)
 
 #Buffers to asses "treatment zones" of 50 km 
 buffers_natural_parks_proj <- gBuffer(natural_parks[[2]], byid = T, width = 50000)
@@ -122,7 +79,7 @@ for(i in buffers_natural_parks@data$ID){
   setTxtProgressBar(pb, i)
 }
 close(pb)
-
+rm(total, pb)
 
 ######################## VERIFICATION: BUFFERS = POLYGONS ########################
 id1 <-list()
@@ -137,6 +94,7 @@ for(i in c(1:length(buffers_natural_parks@polygons))){
   id2[[i]] <- slot(buffers_natural_parks@polygons[[i]], "ID")
 }
 identical(id1, id2)
+rm(id1, id2)
 ################################################################################
 
 
@@ -171,17 +129,18 @@ territories_hole_free <- lapply(territories_proj, function(x){
   BCp <- slot(x, "polygons")
   holes <- lapply(BCp, function(y) sapply(slot(y, "Polygons"), slot, "hole")) 
   res <- lapply(1:length(BCp), function(i) slot(BCp[[i]], "Polygons")[!holes[[i]]]) 
-  IDs <- row.names(x) 
-  return(SpatialPolygonsDataFrame(lapply(1:length(res), function(i) Polygons(res[[i]], ID=IDs[i])), proj4string=CRS(proj4string(x))))
+  IDs <- row.names(x)
+  SpatialPolygons(lapply(1:length(res), function(i) Polygons(res[[i]], ID=IDs[i])), proj4string = CRS(proj4string(x))) 
 })
+  
 
 #Dissolve and merge all geometries to simplify borders 
 territories_dissolve <- lapply(territories_hole_free, function(x){
   unionSpatialPolygons(x, c(1:length(x@polygons))) 
   })
 
-#Clean SpatialPoints (from polygons of Natural parks) -remove other treatments and get effective boundaries-
 
+#Clean SpatialPoints (from polygons of Natural parks) -remove other treatments and get effective boundaries-
 clean_treatments <- function(x, polygon, points_sp, points_border){
   print(x$ID)
   if(gIntersects(x, polygon)){
@@ -219,6 +178,8 @@ clean_treatments <- function(x, polygon, points_sp, points_border){
   
 }
 
+########################################## INDIVIDUAL CLEANING ################################################
+
 #Clean natural parks from black communitary lands
 list_polygons_clean <- lapply(list_polygons_proj, clean_treatments, polygon = territories_union[[1]],
                               points_sp = black_points, points_border = colombia_municipios_p)
@@ -226,6 +187,9 @@ list_polygons_clean <- lapply(list_polygons_proj, clean_treatments, polygon = te
 #Clean natural parks from indigenous resguardos
 list_polygons_clean_indigenous <- lapply(list_polygons_proj, clean_treatments, polygon = territories_union[[2]],
                                   points_sp = indigenous_points, points_border = colombia_municipios_p)
+
+
+###############################################################################################################
 
 #Clean natural parks from both (create the union between borth territories)
 territories_merge <- territories_dissolve %>%
@@ -276,12 +240,12 @@ if(gIntersects(list_polygons_proj[[39]], black_hole_free)) {
   duplicated_coords <- anti_join(clip_coords, polygon2_coords)
   
   # duplicated_coords is the non-intersecting points of the polygon2
-  plot(list_polygons_proj[[513]])
+  plot(list_polygons_proj[[194]])
   plot(territories_union[[1]], add = T, border = "red")
   plot(territories_union[[2]], add = T, border = "orange")
   plot(dif, add = T, border = "blue")
   res <- SpatialPoints(duplicated_coords)
-  plot(list_polygons_clean_all[[10]], col="red", pch=19, add=T)
+  plot(list_polygons_clean_all[[194]], col="red", pch=19, add=T)
   
   dif <- gDifference(res, territories_hole_free[[1]])
   clip_coords <- data.frame(lang = coordinates(dif)[,1], lat = coordinates(dif)[, 2])        # or, clip@polygons[[1]]@Polygons[[1]]@coords

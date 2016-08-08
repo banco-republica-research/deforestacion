@@ -28,7 +28,7 @@ holes <- lapply(BCp, function(x) sapply(slot(x, "Polygons"), slot, "hole"))
 res <- lapply(1:length(BCp), function(i) slot(BCp[[i]], "Polygons")[!holes[[i]]]) 
 IDs <- row.names(colombia_municipios) 
 colombia_municipios <- SpatialPolygons(lapply(1:length(res), function(i) Polygons(res[[i]], ID=IDs[i])), proj4string=CRS(proj4string(colombia_municipios))) 
-
+rm(BCp, holes, res, IDs, i)
 
 #Proyect to meters
 colombia_municipios_proj <- spTransform(colombia_municipios, CRS=CRS("+init=epsg:3857"))
