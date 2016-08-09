@@ -42,13 +42,14 @@ natural_parks <- list(natural_parks, natural_parks_proj) %>%
                            "Gorgona",
                            "Acandi Playon Y Playona",
                            "Uramba Bahia Malaga")) & !x@data$STATUS_YR > 2012 & !x@data$GIS_AREA < 1 , ]
-    
-    
   }) %>%
   #Remove sections of park outside continental Colombia
   mapply(function(x, y){
     raster::intersect(y, x)
-  }, x = . , y = colombia_municipios)
+  }, x = . , y = colombia_municipios) 
+
+#For tracktability
+natural_parks[[2]]@data$ID <- row.names(natural_parks[[2]]@data)
 
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/UNEP")
 writeOGR(obj = natural_parks[[2]], dsn = "WDPA_Modificado" , layer = "WDPA_clean", driver = "ESRI Shapefile", overwrite_layer = TRUE)
@@ -138,28 +139,22 @@ cells <- mapply(function(x, y){ #Remove cells from natural park polygons and lis
 }, x = cells_naturalparks_buffers, y = cells_naturalparks)
 
 # Get natural park SpatialPolygon atributes by cell number
-deforest_cells <- SpatialPoints(xyFromCell(res[[1]], 1:prod(dim(res[[1]]))), proj4string = CRS(proj4string(natural_parks[[1]])))
-natural_parks_atrb <- deforest_cells %over% natural_parks[[1]]
+deforest_cells <- SpatialPoints(xyFromCell(res[[1]], 1:prod(dim(res[[1]]))), proj4string = CRS(proj4string(buffers_natural_parks)))
+natural_parks_atrb <- deforest_cells %over% buffers_natural_parks
 natural_parks_atrb$ID <- row.names(natural_parks_atrb)
 natural_parks_atrb <- natural_parks_atrb[complete.cases(natural_parks_atrb[]), ]
-
-setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes")
-write.csv(natural_parks_atrb, "natural_parks_atrb.csv")
 
 #Mask raster to values indices buffers
 res_mask_natural_parks_buffers <- mask(res[[1]], buffers_natural_parks)
 
 #Calculate distances (functional loop - use a mlaply if too slow)
-rasterOptions(tmpdir = "/Volumes/LaCie/Deforestacion/Hansen/Temp")
 
 calculate_distances_parallel <- function(buffer, points){
-  if(length(points)  > 2 & typeof(points) == "S4"){
     crop(res_mask_natural_parks_buffers, buffer) %>%
       mask(buffer) %>%
       clusterR(.,distanceFromPoints, args = list(xy = points)) %>%
       mask(buffer) %>%
       resample(res_mask_natural_parks_buffers)
-  } else
     return(0)
 }
 
@@ -202,7 +197,11 @@ deforestation_dataframe <- deforestation_dataframe[complete.cases(deforestation_
 #Write CSV
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes/Estrategia 1/")
 write.csv(distance_dataframe, "distancia_dataframe_borders.csv", row.names = F)
+distance_dataframe_borders <- read.csv("distancia_dataframe_borders.csv")
 
+
+natural_parks_atrb$ID <- as.numeric(natural_parks_atrb$ID)
+merge <- merge(natural_parks_atrb, distance_dataframe_borders, by = "ID")
 
 ##############################################################################################
 ##############################################################################################
@@ -212,10 +211,65 @@ write.csv(distance_dataframe, "distancia_dataframe_borders.csv", row.names = F)
 ##############################################################################################
 ##############################################################################################
 
-#Remove redundant geometries from black territories 
-natural_parks_indigenous_merge <- raster::intersect(territories_merge[[2]], natural_parks[[2]])
 
+#Open shapefiles 
+setwd("~/Dropbox/BANREP/Deforestacion/Datos")
 
+#Open shapefiles (only keep those territories after 2012)
+black_territories <- readOGR(dsn = "Comunidades", layer="Tierras de Comunidades Negras (2015)")
+indigenous_territories <- readOGR(dsn = "Resguardos", layer="Resguardos Indigenas (2015)") 
+colnames(indigenous_territories@data)[8] <- "RESOLUCION"
+territories <- list(black_territories, indigenous_territories) %>%
+  lapply(spTransform, CRS=CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+territories_proj <- lapply(territories, spTransform, CRS=CRS("+init=epsg:3857")) %>% #Projection in meters
+  lapply(., function(x){
+    x@data <- mutate(x@data, year = str_replace_all(str_extract(x@data$"RESOLUCION", "[-][1-2][0, 9][0-9][0-9]"), "-", ""))
+    return(x[!as.numeric(x@data$year) > 2012, ])
+  })
+
+#Buffers to asses "treatment zones" of 50 km 
+buffers_territories <- lapply(territories_proj, gBuffer, byid = T, width = 50000) 
+
+#Mask raster to each shapefile
+res_mask_buffers <- lapply(buffers_territories, function(x){
+  mask(res[[1]], x)
+})
+
+#Identify cells from buffer and territory
+cells_territories <- lapply(territories, function(x){
+  cellFromPolygon(res[[1]], x)
+})
+
+cells_territories_buffers <- lapply(buffers_territories, function(x){
+  cellFromPolygon(res[[1]], x)
+})
+
+#Create a list of individual polygons per territory. 
+polygon_to_list <- function(shape){
+  list_polygons <- list()
+  shape@data$ID <- as.factor(row.names(shape@data))
+  for(i in shape@data$ID){
+    list_polygons[[i]] <- shape[shape@data$OBJECTID_1 == i, ]
+  }
+  return(list_polygons)
+}
+
+list_polygons <- lapply(territories_proj, polygon_to_list)
+list_polygons_buffers <- lapply(buffers_territories, polygon_to_list)
+
+#Clean SpatialPoints (from polygons of Natural parks) -remove points out of national frontiers and border points-
+clean_treatments_border <- function(x, points_border){
+  print(x$ID)
+  sp <- x %>% as("SpatialLines") %>% as("SpatialPoints")
+  knn_border <- get.knnx(coordinates(points_border), coordinates(sp), k = 1, algorithm = "kd_tree") %>%
+    data.frame(.)
+  sp_final <- SpatialPointsDataFrame(sp, knn_border, proj4string = CRS("+init=epsg:3857")) %>%
+    .[!.@data$nn.dist < 1000, ] 
+  
+}
+
+list_polygons_clean_border_black <- lapply(list_polygons[[1]], clean_treatments_border, points_border = colombia_municipios_p)
+list_polygons_clean_border_indigenous <- lapply(list_polygons[[2]], clean_treatments_border, points_border = colombia_municipios_p)
 
 
 

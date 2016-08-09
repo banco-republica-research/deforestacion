@@ -50,9 +50,6 @@ natural_parks <- list(natural_parks, natural_parks_proj) %>%
     raster::intersect(y, x)
     }, x = . , y = colombia_municipios)
 
-setwd("~/Dropbox/BANREP/Deforestacion/Datos/UNEP")
-writeOGR(obj = natural_parks[[2]], dsn = "WDPA_Modificado" , layer = "WDPA_clean", driver = "ESRI Shapefile", overwrite_layer = TRUE)
-
 #Buffers to asses "treatment zones" of 50 km 
 buffers_natural_parks_proj <- gBuffer(natural_parks[[2]], byid = T, width = 50000)
 buffers_natural_parks <- spTransform(buffers_natural_parks_proj, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
@@ -313,6 +310,8 @@ write.csv(distance_dataframe, "distancia_dataframe.csv", row.names = F)
 natural_parks_indigenous_merge <- raster::union(territories_merge[[2]], natural_parks[[2]])
 
 
+list_polygons_clean_all <- lapply(list_polygons_proj, clean_treatments, polygon = territories_merge,
+                                  points_sp = territories_merge_p, points_border = colombia_municipios_p)
 
 
 

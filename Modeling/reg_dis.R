@@ -14,7 +14,7 @@ library(stargazer)
 library(rddtools)
 
 #Import datasets
-setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes")
+setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes/Estrategia 2")
 defo <- read.csv("dataframe_deforestacion.csv")
 list_files <- list.files()
 rds_2000 <- list_files[str_detect(list_files, "dist_2000")][c(1:3)] %>%
@@ -155,7 +155,7 @@ mapply(function(x, type){
 
 #Discontinuity plot (ggplot2)
 
-defo_dist_all <- c(defo_dist, defo_dist_terr)
+defo_dist_all <- c(defo_dist)
 
 l <- lapply(defo_dist_all, function(x){
   mutate(x, bin = cut(x$dist_disc / 1000, breaks = c(-50:50), include.lowest = T)) %>%
@@ -179,6 +179,6 @@ g <- g + ggtitle(str_c("Regression discontinuity estimation\n", "for", type, sep
 g <- g + guides(colour = FALSE)
 g <- g + theme_bw()
 g
-ggsave(str_c("RDggplot_", type, ".pdf"), width=30, height=20, units="cm")
-}, x = l, type = c("all parks", "National parks", "Regional parks", "Resguardos", "Black territories"))
+ggsave(str_c("RDggplot_", type, "strategy2",".pdf"), width=30, height=20, units="cm")
+}, x = l, type = c("all parks", "National parks", "Regional parks"))
 
