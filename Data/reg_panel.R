@@ -28,12 +28,14 @@ defo <- defo[, (c("loss_year_brick_1km.1","loss_year_brick_1km.14")) := NULL]
 lights <- fread("Datos/Clumps/clump_id_dataframe.csv")
 lights <- subset(lights,,c("ID","clumps"))
 
+
+############################
 # Merge distances by type of area to defo and X
 
 # areas <- c("all","national","regional", "terr1", "terr2")
-areas <- c("all","national","regional")
+areas <- c( "terr1", "terr2")
 
-for(d in c(1:2)) { 
+for(d in c(1:1)) { 
   print(paste0("distance ",d))
   
   for(a in areas) {
@@ -51,6 +53,8 @@ for(d in c(1:2)) {
   }
 }
 
+
+############################
 # Merge defo to distances for each area (1-15)
 
 for(d in c(1:2)) { 

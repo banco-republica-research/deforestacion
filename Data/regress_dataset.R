@@ -31,7 +31,8 @@ vars <- c("ID","DESIG","STATUS_YR","GOV_TYPE")
 parks_b <- parks[vars]
 summary(parks_b)
 desig <- table(parks_b$DESIG)
-
+desig 
+  
 # pixel by year (stock) and type of park (and also for groups of park types)
 all <- c(1:15)
 national <- c(2,5,7,8,11,12,13,14,15)
@@ -142,7 +143,7 @@ for(d in c(1:2)) {
     if (length(dist_panel)>1) {
       dist_panel <- do.call(rbind, dist_panel)
       
-      # Balanced panel: treatment = 0 if park did not exit in year y, and Time-invariant type of park (Use the 2012 park)
+      # Balanced panel: treatment = 0 if park did not exit in year y, and Time-invariant type of park and distance (Use the 2012 park)
       iddat <- expand.grid(ID = unique(dist_panel$ID), year = unique(dist_panel$year))
       dist_panel <- merge(dist_panel, iddat, all.x=TRUE, all.y=TRUE, by=c("ID", "year"))
       dist_panel$treatment[is.na(dist_panel$treatment)] <- 0 
