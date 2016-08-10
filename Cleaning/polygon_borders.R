@@ -16,6 +16,7 @@ library(maptools)
 library(lattice)
 library(plyr)
 library(grid)
+library(pbapply)
 library(FNN)
 library(dplyr)
 library(broom)
@@ -55,8 +56,8 @@ setwd("~/Dropbox/BANREP/Deforestacion/Datos/UNEP")
 writeOGR(obj = natural_parks[[2]], dsn = "WDPA_Modificado" , layer = "WDPA_clean", driver = "ESRI Shapefile", overwrite_layer = TRUE)
 
 #Buffers to asses "treatment zones" of 50 km 
-buffers_natural_parks_proj <- gBuffer(natural_parks[[2]], byid = T, width = 50000)
-buffers_natural_parks <- spTransform(buffers_natural_parks_proj, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+buffers_natural_parks_proj <- gBuffer(natural_parks[[2]], byid = T, width = 50000) %>%
+  spTransform(CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
 
 
 #Create a list of individual polygons per natural park
@@ -155,7 +156,6 @@ calculate_distances_parallel <- function(buffer, points){
       clusterR(.,distanceFromPoints, args = list(xy = points)) %>%
       mask(buffer) %>%
       resample(res_mask_natural_parks_buffers)
-    return(0)
 }
 
 beginCluster()
@@ -225,10 +225,20 @@ territories_proj <- lapply(territories, spTransform, CRS=CRS("+init=epsg:3857"))
   lapply(., function(x){
     x@data <- mutate(x@data, year = str_replace_all(str_extract(x@data$"RESOLUCION", "[-][1-2][0, 9][0-9][0-9]"), "-", ""))
     return(x[!as.numeric(x@data$year) > 2012, ])
+  }) %>%
+  lapply(.,function(x){
+    x$ID <- row.names(x)
+    return(x)
   })
 
+
+writeOGR(obj = territories_proj[[1]], dsn = "Comunidades" , layer = "Comunidades_clean", driver = "ESRI Shapefile", overwrite_layer = TRUE)
+writeOGR(obj = territories_proj[[2]], dsn = "Resguardos" , layer = "Resguardos_clean", driver = "ESRI Shapefile", overwrite_layer = TRUE)
+
+
 #Buffers to asses "treatment zones" of 50 km 
-buffers_territories <- lapply(territories_proj, gBuffer, byid = T, width = 50000) 
+buffers_territories <- lapply(territories_proj, gBuffer, byid = T, width = 50000) %>% 
+  lapply(., spTransform, CRS=CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
 
 #Mask raster to each shapefile
 res_mask_buffers <- lapply(buffers_territories, function(x){
@@ -236,7 +246,7 @@ res_mask_buffers <- lapply(buffers_territories, function(x){
 })
 
 #Identify cells from buffer and territory
-cells_territories <- lapply(territories, function(x){
+cells_territories <- lapply(territories_proj, function(x){
   cellFromPolygon(res[[1]], x)
 })
 
@@ -247,9 +257,8 @@ cells_territories_buffers <- lapply(buffers_territories, function(x){
 #Create a list of individual polygons per territory. 
 polygon_to_list <- function(shape){
   list_polygons <- list()
-  shape@data$ID <- as.factor(row.names(shape@data))
   for(i in shape@data$ID){
-    list_polygons[[i]] <- shape[shape@data$OBJECTID_1 == i, ]
+    list_polygons[[i]] <- shape[shape@data$ID == i, ]
   }
   return(list_polygons)
 }
@@ -264,13 +273,137 @@ clean_treatments_border <- function(x, points_border){
   knn_border <- get.knnx(coordinates(points_border), coordinates(sp), k = 1, algorithm = "kd_tree") %>%
     data.frame(.)
   sp_final <- SpatialPointsDataFrame(sp, knn_border, proj4string = CRS("+init=epsg:3857")) %>%
-    .[!.@data$nn.dist < 1000, ] 
+    .[!.@data$nn.dist < 1500, ] 
   
 }
 
 list_polygons_clean_border_black <- lapply(list_polygons[[1]], clean_treatments_border, points_border = colombia_municipios_p)
 list_polygons_clean_border_indigenous <- lapply(list_polygons[[2]], clean_treatments_border, points_border = colombia_municipios_p)
 
+
+#Does it works?
+plot(list_polygons[[2]][[172]])
+plot(list_polygons_clean_border_indigenous[[172]], add = T, pch = 19, col = "red")
+
+plot(list_polygons[[1]][[116]])
+plot(list_polygons_clean_border_black[[116]], add = T, pch = 19, col = "red")
+
+
+
+#Reproject points to calculate distances
+list_polygons_clean_black_proj <- lapply(list_polygons_clean_border_black, function(x){
+  if(length(x) > 0){
+  sp <- spTransform(x, CRS = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+  return(sp)
+  }
+  else{
+    return(0)
+  }
+})
+
+list_polygons_clean_indigenous_proj <- lapply(list_polygons_clean_border_indigenous, function(x){
+  if(length(x) > 0){
+    sp <- spTransform(x, CRS = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+    return(sp)
+  }
+  else{
+    return(0)
+  }
+})
+
+
+
+#Get distance rasters for both territories
+
+calculate_distances_parallel <- function(buffer, points){
+  if(length(points) > 1){
+  print(buffer@data$ID)
+  crop(res_mask_buffers[[1]], buffer) %>%
+    mask(buffer) %>%
+    clusterR(.,distanceFromPoints, args = list(xy = points)) %>%
+    mask(buffer) %>%
+    resample(res_mask_buffers[[1]])
+  } else {
+    return(0)
+  }
+}
+
+
+beginCluster()
+system.time(distances_black <- mapply(calculate_distances_parallel,
+                                      buffer = list_polygons_buffers[[1]], 
+                                      points = list_polygons_clean_black_proj))
+endCluster()
+
+
+
+calculate_distances_parallel <- function(buffer, points){
+  if(length(points) > 1){
+    print(buffer@data$ID)
+    crop(res_mask_buffers[[2]], buffer) %>%
+      mask(buffer) %>%
+      clusterR(.,distanceFromPoints, args = list(xy = points)) %>%
+      mask(buffer) %>%
+      resample(res_mask_buffers[[2]])
+  } else {
+    return(0)
+  }
+}
+
+
+beginCluster()
+system.time(distances_indigenous <- mapply(calculate_distances_parallel,
+                                           buffer = list_polygons_buffers[[2]], 
+                                           points = list_polygons_clean_indigenous_proj))
+endCluster()
+
+###################################### EXTRACT #################################################
+#1. Extract distance as data frame per buffer (list element)
+list_dataframes_black <- pblapply(distances_black, as.data.frame, xy = T, na.rm = T)
+list_dataframes_indigenous <- pblapply(distances_indigenous, as.data.frame, xy = T, na.rm = T)
+
+#2. Extract row names (id cells)
+list_dataframes_black <- pblapply(list_dataframes_black, function(x){
+  x$ID <- row.names(x); x
+})
+
+list_dataframes_indigenous <- pblapply(list_dataframes_indigenous, function(x){
+  x$ID <- row.names(x); x
+})
+
+
+# 2.1. Correct polygons without distances (due to be too small)
+zero_lenght <- unname(which(sapply(list_dataframes_black, function(x) dim(x)[2] != 4)))
+for(i in zero_lenght){
+  list_dataframes_black[[i]] <- data.frame(x = c(0), y = c(0), layer = c(0), ID = c(0))
+}
+
+zero_lenght <- unname(which(sapply(list_dataframes_indigenous, function(x) dim(x)[2] != 4)))
+for(i in zero_lenght){
+  list_dataframes_indigenous[[i]] <- data.frame(x = c(0), y = c(0), layer = c(0), ID = c(0))
+}
+
+#3. Append all elements of the list 
+distance_dataframe_black <- do.call(rbind, list_dataframes_black)
+names(list_dataframes_black) <- territories_proj[[1]]@data$ID
+distance_dataframe_black$buffer_id <- rep(names(list_dataframes_black), sapply(list_dataframes_black, nrow)) #identify cells from buffers
+
+distance_dataframe_indigenous <- do.call(rbind, list_dataframes_indigenous)
+names(list_dataframes_indigenous) <- territories_proj[[2]]@data$ID
+distance_dataframe_indigenous$buffer_id <- rep(names(list_dataframes_indigenous), sapply(list_dataframes_indigenous, nrow)) #identify cells from buffers
+
+#4. Identify treatment and remove NA's (read WARNING)
+distance_dataframe_black$treatment <- ifelse(distance_dataframe_black$ID %in% unlist(cells_territories[[1]]), 1, 0)
+distance_dataframe_indigenous$treatment <- ifelse(distance_dataframe_indigenous$ID %in% unlist(cells_territories[[2]]), 1, 0)
+
+list <- list(distance_dataframe_black, distance_dataframe_indigenous)
+names(list) <- c("black", "indigenous")
+
+#5. Export
+setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes")
+lapply(1:length(list), function(i){
+  write.csv(list[[i]], file = str_c("distance_dataframe_", names(list)[[i]], ".csv") , row.names = FALSE)
+})
 
 
 

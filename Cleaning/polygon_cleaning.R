@@ -50,6 +50,9 @@ natural_parks <- list(natural_parks, natural_parks_proj) %>%
     raster::intersect(y, x)
     }, x = . , y = colombia_municipios)
 
+#For tracktability
+natural_parks[[2]]@data$ID <- row.names(natural_parks[[2]]@data)
+
 #Buffers to asses "treatment zones" of 50 km 
 buffers_natural_parks_proj <- gBuffer(natural_parks[[2]], byid = T, width = 50000)
 buffers_natural_parks <- spTransform(buffers_natural_parks_proj, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
@@ -110,12 +113,17 @@ territories_proj <- lapply(territories, spTransform, CRS=CRS("+init=epsg:3857"))
   lapply(., function(x){
     x@data <- mutate(x@data, year = str_replace_all(str_extract(x@data$"RESOLUCION", "[-][1-2][0, 9][0-9][0-9]"), "-", ""))
     return(x[!as.numeric(x@data$year) > 2012, ])
-    })
+  }) %>%
+  lapply(.,function(x){
+    x$ID <- row.names(x)
+    return(x)
+  })
 
 
 #Prepare data
 black_points <- territories_proj[[1]] %>% as("SpatialLines") %>% as("SpatialPoints")
 indigenous_points <- territories_proj[[2]] %>% as("SpatialLines") %>% as("SpatialPoints") 
+naturalparks_points <- natural_parks[[2]] %>% as("SpatialLines") %>% as("SpatialPoints")
 list_polygons_proj <- lapply(list_polygons, spTransform, CRS=CRS("+init=epsg:3857"))
 
 #Eliminate close to water (from colombia_raster.R)
@@ -307,12 +315,80 @@ write.csv(distance_dataframe, "distancia_dataframe.csv", row.names = F)
 ##############################################################################################
 
 #Remove redundant geometries from black territories 
+
+#Get union of polygons
 natural_parks_indigenous_merge <- raster::union(territories_merge[[2]], natural_parks[[2]])
+naturaLparks_black_merge <- raster::union(territories_merge[[1]], natural_parks[[2]])
+
+natural_parks_indigenous_merge_p <- rbind(indigenous_points, naturalparks_points)
+naturaLparks_black_merge_p <- rbind(black_points, naturalparks_points)
 
 
-list_polygons_clean_all <- lapply(list_polygons_proj, clean_treatments, polygon = territories_merge,
-                                  points_sp = territories_merge_p, points_border = colombia_municipios_p)
+#Buffers to asses "treatment zones" of 50 km 
+buffers_territories <- lapply(territories_proj, gBuffer, byid = T, width = 50000) %>% 
+  lapply(., spTransform, CRS=CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+
+#Mask raster to each shapefile
+res_mask_buffers <- lapply(buffers_territories, function(x){
+  mask(res[[1]], x)
+})
+
+#Identify cells from buffer and territory
+cells_territories <- lapply(territories_proj, function(x){
+  cellFromPolygon(res[[1]], x)
+})
+
+cells_territories_buffers <- lapply(buffers_territories, function(x){
+  cellFromPolygon(res[[1]], x)
+})
+
+#Create a list of individual polygons per territory. 
+polygon_to_list <- function(shape){
+  list_polygons <- list()
+  shape@data$ID <- as.factor(row.names(shape@data))
+  for(i in shape@data$ID){
+    list_polygons[[i]] <- shape[shape@data$ID == i, ]
+  }
+  return(list_polygons)
+}
+
+list_polygons_buffers <- lapply(buffers_territories, polygon_to_list)
+list_polygons <- lapply(territories_proj, polygon_to_list)
+
+list_polygons_black <- list_polygons[[1]] %>%
+  lapply(function(x){
+    gBuffer(x, byid = T, width = 0) %>%
+      gSimplify(., tol = 0.001)
+  })
+
+list_polygons <- list_polygons %>%
+  rapply(function(x){
+    gBuffer(x, byid = T, width = 0) %>%
+      gSimplify(., tol = 0.001)
+  }, how = "replace")
 
 
+#Clean polygons
 
+list_polygons_clean_black_all <- lapply(list_polygons[[1]], clean_treatments, polygon = natural_parks_indigenous_merge,
+                                        points_sp = natural_parks_indigenous_merge_p, points_border = colombia_municipios_p)
+
+
+#Debugg
+
+if(gIntersects(list_polygons[[1]][[1]], natural_parks_indigenous_merge)){ 
+  #Remove inside points
+  dif <- gDifference(list_polygons[[1]][[1]], natural_parks_indigenous_merge)
+  if(!is.null(dif)){
+    dif_ <- tidy(dif)[, 1:2] #Coordinates difference
+    polygon2_coords <- tidy(list_polygons[[1]][[8]])[,1:2] #Coordinates polygon
+    # Duplicated_coords is the non-intersecting points of the polygon2
+    duplicated_coords <- anti_join(dif, polygon2_coords) 
+    res <- SpatialPoints(duplicated_coords, proj4string = CRS("+init=epsg:3857"))
+  } 
+}
+
+plot(list_polygons[[1]][[1]])
+plot(naturaLparks_black_merge, border = "red", add = T)
+plot(dif, border = "blue", add = T)
 
