@@ -25,58 +25,61 @@ data <-"Datos/Dataframes/"
 ########################################################
 
 # Parks
-parks <- readOGR(dsn = paste0(parks, "WDPA_Modificado"), layer = "TerritoriosResguardados")
+# natural_parks <- readOGR(dsn = paste0(parks, "WDPA_June2016_COL-shapefile"), layer = "WDPA_June2016_COL-shapefile-polygons")
+parks <- readOGR(dsn = paste0(parks, "WDPA_Modificado"), layer = "WDPA_clean")
 vars <- c("ID","DESIG","STATUS_YR","GOV_TYPE")
 parks_b <- parks[vars]
 summary(parks_b)
 desig <- table(parks_b$DESIG)
 
-# Distance
-dist <- fread(paste0(data,"distancia_dataframe.csv"))
-names(dist)[names(dist) == "layer"] = "dist" 
-dim(unique(dist,by="ID"))
-
-# Merge  
-dist_b <- merge(dist, parks_b, by.x="buffer_id", by.y="ID")
-dist_b$DESIG2 <- mapvalues(dist_b$DESIG, levels(dist_b$DESIG), c(1:16))
-dist_b$year <- as.numeric(dist_b$STATUS_YR)
-dim(dist_b)
-
 # pixel by year (stock) and type of park (and also for groups of park types)
-
-all <- c(1:16)
-national <- c(2,5,8,11,12,13,14,15,16)
-regional <- c(1,3,4,6,7,9,10)
+all <- c(1:15)
+national <- c(2,5,7,8,11,12,13,14,15)
+regional <- c(1,3,4,6,9,10)
 areas <- c("all","national","regional")
 
-for(y in 2000:2012) {
+# Distance: To any frontier, and only effective frontier
+
+for(d in c(1:2)) { 
+  print(paste0("distance ",d))
+  dist <- fread(paste0(paste0(data, "Estrategia ",d,"/distancia_dataframe.csv")))
+  names(dist)[names(dist) == "layer"] = "dist" 
   
-  print(paste0("year ",y))
-  dist_yl <- list()
-  eval(parse(text=paste("dist_y <- dist_b[dist_b$year < ",y,",]", sep="")))
-  print(dim(dist_y))
+  # Merge 
+  dist_b <- merge(dist, parks_b, by.x="buffer_id", by.y="ID")
+  dist_b$DESIG2 <- mapvalues(dist_b$DESIG, levels(dist_b$DESIG), c(1:15))
+  dist_b$year <- as.numeric(dist_b$STATUS_YR)
+  dim(dist_b)
 
-  # For each type 
-  for(i in levels(dist_b$DESIG2)){
-    print(i)
-    dist_temp <- dist_y[dist_y$DESIG2==i,]
-#    print(dim(dist_temp))
-    setorder(dist_temp, ID,-treatment,dist)
-    dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
-    dist_yl[[i]] <- dist_temp
+  for(y in 2000:2012) {
+    
+    print(paste0("year ",y))
+    dist_yl <- list()
+    eval(parse(text=paste("dist_y <- dist_b[dist_b$year < ",y,",]", sep="")))
+    print(dim(dist_y))
+    
+    # For each park  
+    for(i in levels(dist_b$DESIG2)){
+      print(i)
+      dist_temp <- dist_y[dist_y$DESIG2==i,]
+      #    print(dim(dist_temp))
+      setorder(dist_temp, ID,-treatment,dist)
+      dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
+      dist_yl[[i]] <- dist_temp
     }
-  saveRDS(dist_yl, file =  paste0(data,"dist_",y,".rds"))
-
-  # By type of area 
-  for(a in areas) {
-    print(paste(a, "Parks"))
-    eval(parse(text=paste("dist_temp <- dist_yl[",a,"]", sep="")))
-    dist_temp <- do.call(rbind, dist_temp)
-    setorder(dist_temp, ID,-treatment,dist)
-    dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
-    saveRDS(dist_temp, file =  paste0(data, "dist_",y,"_",a,".rds"))
+    saveRDS(dist_yl, file =  paste0(data,"Estrategia ",d,"/dist_",y,".rds"))
+    
+    # By type of area 
+    for(a in areas) {
+      print(paste(a, "Parks"))
+      eval(parse(text=paste("dist_temp <- dist_yl[",a,"]", sep="")))
+      dist_temp <- do.call(rbind, dist_temp)
+      setorder(dist_temp, ID,-treatment,dist)
+      dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
+      saveRDS(dist_temp, file =  paste0(data, "Estrategia ",d,"/dist_",y,"_",a,".rds"))
     }
   }
+}
 
 
 ########################################################
@@ -89,12 +92,15 @@ for(y in 2000:2012) {
 
 areas <- c("all","national","regional")
 
-for(a in areas) {
+for(d in c(1:2)) { 
+  print(paste0("distance ",d))
+  
+  for(a in areas) {
   print(paste0("area ",a))
   dist_panel <- list()
   for(y in 2001:2012) {
     print(paste0("year ",y))
-    dist_temp <- readRDS(paste0(data,"dist_",y,"_",a,".rds"))
+    dist_temp <- readRDS(paste0(data,"Estrategia ",d,"/dist_",y,"_",a,".rds"))
     dist_temp <- dist_temp[dist_temp$dist<=20000,]
     dist_temp$year <- y
     dist_panel[[y-2000]] <- dist_temp
@@ -110,56 +116,52 @@ for(a in areas) {
   names(desig_2012) <- c("ID","buffer_id_2012","dist_2012","DESIG2_2012")
   dist_panel <- merge(dist_panel, desig_2012, all.x=TRUE, all.y=TRUE, by="ID")
   print(dim(dist_panel))
-  saveRDS(dist_panel, file =  paste0(data,"dist_panel_",a,".rds"))
+  saveRDS(dist_panel, file =  paste0(data,"Estrategia ",d,"/dist_panel_",a,".rds"))
   }
+}
 
 
-# for each area (1-16)
+# for each area (1-15)
 
-for(a in 3:16) {
-  print(paste0("area ",a))
-  dist_panel <- list()
-  for(y in 2001:2012) {
-    print(paste0("year ",y))
-    dist_temp <- readRDS(paste0(data,"dist_",y,".rds"))[[a]]
-    if ((dim(dist_temp)[1]) > 0){
-      dist_temp <- dist_temp[dist_temp$dist<=20000,]
-      dist_temp$year <- y
-      dist_panel[[y-2000]] <- dist_temp
+for(d in c(1:2)) { 
+  print(paste0("distance ",d))
+  
+  for(a in 1:15) {
+    print(paste0("area ",a))
+    dist_panel <- list()
+    for(y in 2001:2012) {
+      print(paste0("year ",y))
+      dist_temp <- readRDS(paste0(data,"Estrategia ",d,"/dist_",y,".rds"))[[a]]
+      if ((dim(dist_temp)[1]) > 0){
+        dist_temp <- dist_temp[dist_temp$dist<=20000,]
+        dist_temp$year <- y
+        dist_panel[[y-2000]] <- dist_temp
+      }
     }
-  }
-  
-  if (length(dist_panel)>1) {
-  dist_panel <- do.call(rbind, dist_panel)
-  
-  # Balanced panel: treatment = 0 if park did not exit in year y, and Time-invariant type of park (Use the 2012 park)
-  iddat <- expand.grid(ID = unique(dist_panel$ID), year = unique(dist_panel$year))
-  dist_panel <- merge(dist_panel, iddat, all.x=TRUE, all.y=TRUE, by=c("ID", "year"))
-  dist_panel$treatment[is.na(dist_panel$treatment)] <- 0 
-  
-  desig_2012 <- dist_panel[dist_panel$year==2012,c("ID","buffer_id","dist","DESIG2")]
-  names(desig_2012) <- c("ID","buffer_id_2012","dist_2012","DESIG2_2012")
-  dist_panel <- merge(dist_panel, desig_2012, all.x=TRUE, all.y=TRUE, by="ID")
-  print(dim(dist_panel))
-  saveRDS(dist_panel, file =  paste0(data,"dist_panel_",a,".rds"))
+    
+    if (length(dist_panel)>1) {
+      dist_panel <- do.call(rbind, dist_panel)
+      
+      # Balanced panel: treatment = 0 if park did not exit in year y, and Time-invariant type of park (Use the 2012 park)
+      iddat <- expand.grid(ID = unique(dist_panel$ID), year = unique(dist_panel$year))
+      dist_panel <- merge(dist_panel, iddat, all.x=TRUE, all.y=TRUE, by=c("ID", "year"))
+      dist_panel$treatment[is.na(dist_panel$treatment)] <- 0 
+      
+      desig_2012 <- dist_panel[dist_panel$year==2012,c("ID","buffer_id","dist","DESIG2")]
+      names(desig_2012) <- c("ID","buffer_id_2012","dist_2012","DESIG2_2012")
+      dist_panel <- merge(dist_panel, desig_2012, all.x=TRUE, all.y=TRUE, by="ID")
+      print(dim(dist_panel))
+      saveRDS(dist_panel, file =  paste0(data,"Estrategia ",d,"/dist_panel_",a,".rds"))
+    }
   }
 }
 
 
 
-<<<<<<< HEAD
 
 
 
 
-
-
-
-
-
-
-=======
->>>>>>> 4c86b4ed04ea350c8645873e37cba883ad451849
 ########################################################
 
 # Miscellaneous 

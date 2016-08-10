@@ -1,5 +1,5 @@
 
-# Run Panel regressions
+# Create datasets for Panel regressions
 
 ############################
 
@@ -30,49 +30,48 @@ lights <- subset(lights,,c("ID","clumps"))
 
 # Merge distances by type of area to defo and X
 
-areas <- c("all","national","regional", "terr1", "terr2")
-defo_dist <- list()
+# areas <- c("all","national","regional", "terr1", "terr2")
+areas <- c("all","national","regional")
 
-for(a in areas) {
-  print(paste0("area ",a))
-  dist_temp <- readRDS(paste0(data,"dist_panel_",a,".rds"))
-  defo_temp <-  defo[defo$ID %in% unique(dist_temp$ID)]
-  defo_temp <- melt(defo_temp, id.vars = "ID", measure = patterns("^loss_year_brick_1km."), variable.name = "year", value.name = "defo")
-  defo_temp$year <- as.numeric(substr(defo_temp$year, 21,23)) + 1999
-  defo_temp <- merge(dist_temp, defo_temp,by = c("ID", "year"))
-  defo_dist[[a]] <- merge(defo_temp, lights, by ="ID", all.x = TRUE)
-  defo_dist[[a]]$clumps[is.na(defo_dist[[a]]$clumps)] <- 0
+for(d in c(1:2)) { 
+  print(paste0("distance ",d))
   
-  # Export to stata
-  eval(parse(text=paste("write.dta(defo_dist[[\"",a,"\"]],paste0(data,\"defo_panel_",a,".dta\"))", sep="")))
-}
-
-# Merge defo to distances for each park area (1-16)
-
-defo_dist <- list()
-
-for(a in 1:16) {
-  print(paste0("area ",a))
-  ok <- file.exists(paste0(data,"dist_panel_",a,".rds"))
-  if (ok) {
-    dist_temp <- readRDS(paste0(data,"dist_panel_",a,".rds"))
+  for(a in areas) {
+    print(paste0("area ",a))
+    dist_temp <- readRDS(paste0(data,"Estrategia ",d,"/dist_panel_",a,".rds"))
     defo_temp <-  defo[defo$ID %in% unique(dist_temp$ID)]
     defo_temp <- melt(defo_temp, id.vars = "ID", measure = patterns("^loss_year_brick_1km."), variable.name = "year", value.name = "defo")
     defo_temp$year <- as.numeric(substr(defo_temp$year, 21,23)) + 1999
     defo_temp <- merge(dist_temp, defo_temp,by = c("ID", "year"))
-    defo_dist[[a]] <- merge(defo_temp, lights, by ="ID", all.x = TRUE)
-    defo_dist[[a]]$clumps[is.na(defo_dist[[a]]$clumps)] <- 0
+    defo_dist <- merge(defo_temp, lights, by ="ID", all.x = TRUE)
+    defo_dist$clumps[is.na(defo_dist$clumps)] <- 0
 
     # Export to stata
-    eval(parse(text=paste("write.dta(defo_dist[[",a,"]],paste0(data,\"defo_panel_",a,".dta\"))", sep="")))
+    eval(parse(text=paste("write.dta(defo_dist,paste0(data,\"Estrategia ",d,"/defo_panel_",a,".dta\"))", sep="")))
+  }
+}
+
+# Merge defo to distances for each area (1-15)
+
+for(d in c(1:2)) { 
+  print(paste0("distance ",d))
+  
+  for(a in 1:15) {
+    print(paste0("area ",a))
+    ok <- file.exists(paste0(data,"Estrategia ",d,"/dist_panel_",a,".rds"))
+    if (ok) {
+      dist_temp <- readRDS(paste0(data,"Estrategia ",d,"/dist_panel_",a,".rds"))
+      defo_temp <-  defo[defo$ID %in% unique(dist_temp$ID)]
+      defo_temp <- melt(defo_temp, id.vars = "ID", measure = patterns("^loss_year_brick_1km."), variable.name = "year", value.name = "defo")
+      defo_temp$year <- as.numeric(substr(defo_temp$year, 21,23)) + 1999
+      defo_temp <- merge(dist_temp, defo_temp,by = c("ID", "year"))
+      defo_dist <- merge(defo_temp, lights, by ="ID", all.x = TRUE)
+      defo_dist$clumps[is.na(defo_dist$clumps)] <- 0
+      
+      # Export to stata
+      eval(parse(text=paste("write.dta(defo_dist,paste0(data,\"Estrategia ",d,"/defo_panel_",a,".dta\"))", sep="")))
+    }
   }
 }
 
 
-
-
-########################################################
-
-# Regressions  
-
-########################################################
