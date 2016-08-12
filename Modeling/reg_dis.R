@@ -15,8 +15,10 @@ library(rddtools)
 library(ggplot2)
 
 #Import datasets
-setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes/Estrategia 1/")
+setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes")
 defo <- read.csv("dataframe_deforestacion.csv")
+
+setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes/Estrategia 1/")
 list_files <- list.files()
 rds_2000 <- list_files[str_detect(list_files, "dist_2000")][c(1:3)] %>%
   lapply(readRDS) %>%
@@ -29,7 +31,7 @@ territories_2000 <- list_files[str_detect(list_files, "_2000")] %>%
 
 #Aggregate deforestation (2001 - 2012)
 defo$loss_sum <- rowSums(defo[, c(4:length(names(defo)))])
-loss_sum <- select(defo, c(ID, loss_sum))
+loss_sum <- dplyr::select(defo, c(ID, loss_sum))
 
 #Merge data
 defo_dist <- lapply(rds_2000, function(x){

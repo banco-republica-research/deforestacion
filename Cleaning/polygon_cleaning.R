@@ -146,17 +146,17 @@ territories_dissolve <- lapply(territories_hole_free, function(x){
 
 
 #Clean SpatialPoints (from polygons of Natural parks) -remove other treatments and get effective boundaries-
-clean_treatments <- function(x, polygon, points_sp, points_border){
+clean_treatments <- function(x, polygon, points_sp, points_border, shape){
   print(x$ID)
   if(gIntersects(x, polygon)){
     #Remove inside points
     dif <- gDifference(x, polygon, drop_lower_td = T)
     if(!is.null(dif)){
-    dif <- tidy(dif)[, 1:2] #Coordinates difference
-    polygon2_coords <- tidy(x)[,1:2] #Coordinates polygon
-    # Duplicated_coords is the non-intersecting points of the polygon2
-    duplicated_coords <- anti_join(dif, polygon2_coords) 
-    res <- SpatialPoints(duplicated_coords, proj4string = CRS("+init=epsg:3857"))
+      dif <- tidy(dif)[, 1:2] #Coordinates difference
+      polygon2_coords <- tidy(x)[,1:2] #Coordinates polygon
+      # Duplicated_coords is the non-intersecting points of the polygon2
+      duplicated_coords <- anti_join(dif, polygon2_coords) 
+      res <- SpatialPoints(duplicated_coords, proj4string = CRS("+init=epsg:3857"))
     } else {
       return(0)
     }
@@ -167,20 +167,30 @@ clean_treatments <- function(x, polygon, points_sp, points_border){
       .[!.@data$nn.dist < 2000, ]
     knn_border <- get.knnx(coordinates(points_border), coordinates(sp), k = 1, algorithm = "kd_tree") %>%
       data.frame(.)
-    sp_final <- SpatialPointsDataFrame(sp, knn_border, proj4string = CRS("+init=epsg:3857")) %>%
+    sp_border <- SpatialPointsDataFrame(sp, knn_border, proj4string = CRS("+init=epsg:3857")) %>%
       .[!.@data$nn.dist < 1000, ] 
+    dif <- gDifference(shape, x) %>% as("SpatialLines") %>% as("SpatialPoints")
+    knn_final <- get.knnx(coordinates(dif), coordinates(sp_border), k = 1, algorithm = "kd_tree") %>%
+      data.frame()
+    sp_final <- SpatialPointsDataFrame(sp_border, knn_final, proj4string = CRS("+init=epsg:3857")) %>%
+      .[!.@data$nn.dist < 1000, ]
     
   } else {
     #Remove close cofounding treatments
     points <- x %>% as("SpatialLines") %>% as("SpatialPoints")
     knn <- get.knnx(coordinates(points_sp), coordinates(points), k = 1, algorithm = "kd_tree") %>%
-      data.frame() 
+      data.frame(.) 
     sp <- SpatialPointsDataFrame(points, knn, proj4string = CRS("+init=epsg:3857")) %>%
       .[!.@data$nn.dist < 2000, ] 
-      knn_border <- get.knnx(coordinates(points_border), coordinates(sp), k = 1, algorithm = "kd_tree") %>%
+    knn_border <- get.knnx(coordinates(points_border), coordinates(sp), k = 1, algorithm = "kd_tree") %>%
       data.frame(.)
-    sp_final <- SpatialPointsDataFrame(sp, knn_border, proj4string = CRS("+init=epsg:3857")) %>%
+    sp_border <- SpatialPointsDataFrame(sp, knn_border, proj4string = CRS("+init=epsg:3857")) %>%
       .[!.@data$nn.dist < 1000, ] 
+    dif <- gDifference(shape, x) %>% as("SpatialLines") %>% as("SpatialPoints")
+    knn_final <- get.knnx(coordinates(dif), coordinates(sp_border), k = 1, algorithm = "kd_tree") %>%
+      data.frame()
+    sp_final <- SpatialPointsDataFrame(sp_border, knn_final, proj4string = CRS("+init=epsg:3857")) %>%
+      .[!.@data$nn.dist < 1000, ]
   }
   
 }
@@ -317,7 +327,7 @@ write.csv(distance_dataframe, "distancia_dataframe.csv", row.names = F)
 #Remove redundant geometries from black territories 
 
 #Get union of polygons
-natural_parks_indigenous_merge <- raster::union(territories_merge[[2]], natural_parks[[2]])
+natural_parks_indigenous_merge <- gUnion(territories_merge[[2]], natural_parks[[2]])
 naturaLparks_black_merge <- raster::union(territories_merge[[1]], natural_parks[[2]])
 
 natural_parks_indigenous_merge_p <- rbind(indigenous_points, naturalparks_points)
@@ -345,7 +355,6 @@ cells_territories_buffers <- lapply(buffers_territories, function(x){
 #Create a list of individual polygons per territory. 
 polygon_to_list <- function(shape){
   list_polygons <- list()
-  shape@data$ID <- as.factor(row.names(shape@data))
   for(i in shape@data$ID){
     list_polygons[[i]] <- shape[shape@data$ID == i, ]
   }
@@ -367,28 +376,22 @@ list_polygons <- list_polygons %>%
       gSimplify(., tol = 0.001)
   }, how = "replace")
 
+territories_proj_corrected <- territories_proj %>%
+  lapply(function(x){
+    gBuffer(x, byid = T, width = 0) %>%
+      gSimplify(., tol = 0.001)
+  })
+
 
 #Clean polygons
 
 list_polygons_clean_black_all <- lapply(list_polygons[[1]], clean_treatments, polygon = natural_parks_indigenous_merge,
-                                        points_sp = natural_parks_indigenous_merge_p, points_border = colombia_municipios_p)
+                                        points_sp = natural_parks_indigenous_merge_p, points_border = colombia_municipios_p,
+                                        shape = territories_proj_corrected[[1]])
 
 
-#Debugg
-
-if(gIntersects(list_polygons[[1]][[1]], natural_parks_indigenous_merge)){ 
-  #Remove inside points
-  dif <- gDifference(list_polygons[[1]][[1]], natural_parks_indigenous_merge)
-  if(!is.null(dif)){
-    dif_ <- tidy(dif)[, 1:2] #Coordinates difference
-    polygon2_coords <- tidy(list_polygons[[1]][[8]])[,1:2] #Coordinates polygon
-    # Duplicated_coords is the non-intersecting points of the polygon2
-    duplicated_coords <- anti_join(dif, polygon2_coords) 
-    res <- SpatialPoints(duplicated_coords, proj4string = CRS("+init=epsg:3857"))
-  } 
-}
-
-plot(list_polygons[[1]][[1]])
-plot(naturaLparks_black_merge, border = "red", add = T)
-plot(dif, border = "blue", add = T)
+#Does it work? 
+plot(list_polygons[[1]][[108]])
+plot(list_polygons_clean_black_all[[108]], add = T, col = "blue", pch = 19)
+plot(sp, add = T, col = "red", pch = 19)
 
