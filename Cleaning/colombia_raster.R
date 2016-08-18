@@ -69,12 +69,19 @@ colombia_municipios_df$ID <- row.names(colombia_municipios_df)
 colombia_municipios_r2 <- rasterize(colombia_municipios, rasters_lights[[1]],
                                     field = c(colombia_municipios@data$ID_ESPACIA))
 
-pacific_littoral_map_muni_r <- rasterize(pacific_littoral_map_muni, rasters_lights[[1]], 
-                                         field = c(pacific_littoral_map_muni$ID_ESPACIA))
-
-
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes")
 write.csv(colombia_municipios_df, "colombia_raster_df", row.names = F)
 setwd("~")
 writeRaster(colombia_municipios_r2, "colombia_municipios.tif", format = "GTiff")
+
+
+#Rasters for municipios with codes
+colombia_municipios$ID_ESPACIA <- as.numeric(as.character(colombia_municipios$ID_ESPACIA))
+colombia_municipios_code_r <- rasterize(colombia_municipios, res[[1]], 
+                                         field = c(colombia_municipios$ID_ESPACIA)) %>%
+  as.data.frame(xy = T, na.rm = T) %>%
+  mutate(ID = row.names(.))
+
+setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes")
+write.csv(colombia_municipios_code_r, "colombia_municipios_code_r", row.names = F)
 

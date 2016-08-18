@@ -9,6 +9,7 @@ library(dplyr)
 library(data.table)
 library(rdrobust)
 library(rdd)
+library(multiwayvcov)
 library(stringr)
 library(stargazer)
 library(rddtools)
@@ -16,7 +17,10 @@ library(ggplot2)
 
 #Import datasets
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes")
-defo <- read.csv("dataframe_deforestacion.csv")
+defo <- read.csv("dataframe_deforestacion.csv") %>% select(-X)
+cov <- read.csv("geographic_covariates.csv") %>% select(-X)
+clump <- read.csv("clump_id_dataframe_2000.csv") %>% select(ID, clumps)
+
 
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes/Estrategia 1")
 list_files <- list.files()
@@ -36,37 +40,30 @@ loss_sum <- dplyr::select(defo, c(ID, loss_sum))
 #Merge data
 defo_dist <- lapply(rds_2000, function(x){
   merge(loss_sum, x, by.x = "ID", by.y = "ID") %>%
-    mutate(., dist_disc = ifelse(treatment == 1, 1, -1) * dist)
+    mutate(., dist_disc = ifelse(treatment == 1, 1, -1) * dist) %>%
+    merge(., cov, by = "ID", all.x = T) %>%
+    merge(., clump, by = "ID", all.x = T) %>%
+    mutate(clumps = ifelse(is.na(clumps), 0, 1))
 })
-
 
 defo_dist_terr <- lapply(territories_2000, function(x){
   merge(loss_sum, x, by.x = "ID", by.y = "ID") %>%
-    mutate(., dist_disc = ifelse(treatment == 1, 1, -1) * dist)
+    mutate(., dist_disc = ifelse(treatment == 1, 1, -1) * dist) %>%
+    merge(., cov, by = "ID", all.x = T) %>%
+    merge(., clump, by = "ID", all.x = T) %>%
+    mutate(clumps = ifelse(is.na(clumps), 0, 1))
 })
 
-# Naive regression
-library(stargazer)
-naive_reg <- lapply(defo_dist, function(x){
-  lm(formula = loss_sum ~ treatment , data = x)
-})
-stargazer(naive_reg)
 
-
-naive_reg_terr <- lapply(defo_dist_terr, function(x){
-  lm(formula = loss_sum ~ treatment , data = x)
-})
-stargazer(naive_reg_terr)
-
-
-#Regression discontinuity 
+#Regression discontinuity (optimal bandwidth)
 
 #All parks RD estimator
 rd_robust_parks <- lapply(defo_dist, function(park){
   rdrobust(
     y = I(park$loss_sum * 100),
     x = park$dist_disc,
-    cluster = park$ID
+    cluster = park$ID,
+    all = T
   )
 })
 
@@ -75,9 +72,11 @@ rd_robust_terr <- lapply(defo_dist_terr, function(terr){
   rdrobust(
     y = I(terr$loss_sum * 100),
     x = terr$dist_disc,
-    cluster = terr$ID
+    cluster = terr$ID,
+    all = T
   )
 })
+
 
 setwd("~")
 rd_robust_terr <- readRDS("rd_robust_terr.rds")
@@ -153,6 +152,42 @@ mapply(function(x, type){
     ci = 95)
   dev.off()
 }, x = defo_dist_terr, type = c("resguardos", "black territories"))
+
+
+
+# Regression with optimal bw and heterogeneus effects
+het_reg <- lapply(defo_dist, function(x){
+  lm(formula = loss_sum ~ treatment + poly(dist_disc/1000, 2) + altura_tile_30arc + roughness + slope, data = x,
+     subset = dist <= 5000)
+})
+het_reg_clust <- lapply(het_reg, cluster.vcov, ~ ID)
+mapply(coeftest, x  = het_reg , vcov. = het_reg_clust)
+
+stargazer(het_reg)
+
+
+het_reg_terr <- lapply(defo_dist_terr, function(x){
+  lm(formula = loss_sum * 100 ~ treatment*clumps + poly(dist_disc/1000, 2) + altura_tile_30arc + roughness + slope, data = x,
+     subset = dist <= 5000)
+})
+het_reg_clust_terr <- lapply(het_reg_terr, cluster.vcov, ~ ID)
+mapply(coeftest, x  = het_reg , vcov. = het_reg_clust)
+
+stargazer(naive_reg_terr)
+
+
+het_reg_terr <- lapply(defo_dist_terr, function(x){
+  lm(formula = loss_sum * 100 ~ treatment*clumps + poly(dist_disc/1000, 2):clumps + altura_tile_30arc:clumps + roughness:clumps + slope:clumps, data = x,
+     subset = dist <= 5000)
+})
+het_reg_clust_terr <- lapply(het_reg_terr, cluster.vcov, ~ ID)
+mapply(coeftest, x  = het_reg , vcov. = het_reg_clust)
+
+stargazer(naive_reg_terr)
+
+
+
+
 
 
 

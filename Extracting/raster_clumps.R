@@ -1,3 +1,13 @@
+library(raster)
+library(magrittr)
+library(rgdal)
+library(rgeos)
+
+
+#Get deforestation raster for reference 
+setwd("/Volumes/LaCie/Deforestacion/Hansen")
+res <- brick("loss_year_brick_1km.tif")
+
 #Get administrative GIS data
 setwd("/Volumes/LaCie/Datos/")
 colombia_municipios <- 
@@ -30,7 +40,7 @@ rasters_extent <- extent(list_raster[[1]]) #We need to put all rasters into the 
 rasters_lights <- processing_rasters(list_raster, rasters_extent, colombia_municipios) 
 
 #Clumps to identify cities (queen) for 2005
-clump_lights <- clump(rasters_lights[[22]], directions = 8) %>%
+clump_lights <- clump(rasters_lights[[13]], directions = 8) %>%
   resample(., res[[1]])
 clump_lights_df <- as.data.frame(clump_lights, xy = T, na.rm = T)
 clump_lights_df$ID <- row.names(clump_lights_df)
@@ -40,11 +50,40 @@ clump_lights_df$clumps <- 1 #Remove clump identifier (because yes ;] )
 #Clumps to polygons
 p1 <- rasterToPolygons(clump_lights, dissolve = T)
 setwd("~/Dropbox/BANREP/Deforestacion/Datos")
-dir.create("Clumps", showWarnings = T)
-writeOGR(p1, "Clumps/polygon_clump_layer.shp",layer =  "clumps", driver = "ESRI Shapefile")
+writeOGR(p1, "Clumps/polygon_clump_layer_2000.shp",layer = "clumps", driver = "ESRI Shapefile")
 
 #Export .csv with clumps and ID
-write.csv(clump_lights_df, "Clumps/clump_id_dataframe.csv")
+write.csv(clump_lights_df, "Clumps/clump_id_dataframe_2000.csv")
+
+
+#Process data
+setwd("~/Dropbox/BANREP/Deforestacion/Datos/Rasters/")
+elevation <- raster("altura_tile_30arc.tif") %>%
+  crop(colombia_municipios) %>%
+  setExtent(rasters_lights[[1]]) %>%
+  mask(colombia_municipios) %>%
+  resample(., res[[1]])
+
+
+# 6. Slope and aspects
+slope <- terrain(elevation, opt = "slope")
+roughness  <- terrain(elevation, opt = "roughness")
+tri <- terrain(elevation, opt = "TRI")
+
+
+#Extract data 
+dataframes_extract <- list(elevation, slope, roughness, tri) %>%
+  lapply(as.data.frame, na.rm  = T) %>%
+  lapply(function(x){
+    x$ID <- row.names(x); x
+  })
+
+# 2. Merge
+merge_rasters_dataframes <- Reduce(function(...) merge(..., by="ID"), dataframes_extract) 
+#Export .csv with clumps and ID
+setwd("~/Dropbox/BANREP/Deforestacion/Datos/")
+write.csv(merge_rasters_dataframes, "geographic_covariates.csv")
+
 
 
 
