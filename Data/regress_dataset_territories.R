@@ -36,7 +36,7 @@ for(i in 1:2){
 
 # Distance: To any frontier, and only effective frontier
 
-for(d in c(1:1)) { 
+for(d in c(2:2)) { 
   print(paste0("distance ",d))
   
   # Read distance to Indigenous and black reserves 
@@ -79,7 +79,7 @@ for(d in c(1:1)) {
 
 ########################################################
 
-for(d in c(1:1)) { 
+for(d in c(2:2)) { 
   print(paste0("distance ",d))
   
   for(i in 1:2){
@@ -105,7 +105,7 @@ for(d in c(1:1)) {
     dist_panel <- merge(dist_panel, desig_2012, all.x=TRUE, all.y=TRUE, by="ID")
     print(dim(dist_panel))
     saveRDS(dist_panel, file =  paste0(data,"Estrategia ",d,"/dist_panel_terr",i,".rds"))
-  }
-  
+
+    }
 }
 
