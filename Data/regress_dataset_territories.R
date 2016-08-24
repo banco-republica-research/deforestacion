@@ -9,6 +9,10 @@ library(rgdal)
 library(stringr)
 library(plyr)
 library(dplyr)
+library(foreign)
+library(rgeos)
+library(tidyr)
+library(rgdal)
 
 # Leonardo
 setwd("C:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/")
@@ -23,6 +27,22 @@ data <-"Datos/Dataframes/"
 # Pixels and Reserves data  
 
 ########################################################
+
+# original territories for descriptives
+indigenous_territories <- readOGR(dsn = paste0(maps,"Resguardos"), layer="Resguardos Indigenas (2015)") 
+black_territories <- readOGR(dsn = paste0(maps,"Comunidades"), layer="Tierras de Comunidades Negras (2015)")
+colnames(indigenous_territories@data)[8] <- "RESOLUCION"
+
+territories <- 
+  list(indigenous_territories, black_territories) %>%
+  lapply(spTransform, CRS=CRS("+init=epsg:3857")) %>%
+  lapply(., function(x){
+  mutate(x@data, year = str_replace_all(str_extract(x@data$"RESOLUCION", "[-][1-2][0, 9][0-9][0-9]"), "-", "") , area = gArea(x, byid = T) / 1e6) }) %>%
+  lapply(.,as.data.frame)
+
+write.dta(territories[[1]],"Datos/Resguardos/Resguardos.dta")
+write.dta(territories[[2]],"Datos/Comunidades/Comunidades.dta")
+
 
 # Maps (and get correct year)
 terr <- list()
@@ -79,7 +99,7 @@ for(d in c(2:2)) {
 
 ########################################################
 
-for(d in c(2:2)) { 
+for(d in c(1:2)) { 
   print(paste0("distance ",d))
   
   for(i in 1:2){
@@ -99,6 +119,10 @@ for(d in c(2:2)) {
     iddat <- expand.grid(ID = unique(dist_panel$ID), year = unique(dist_panel$year))
     dist_panel <- merge(dist_panel, iddat, all.x=TRUE, all.y=TRUE, by=c("ID", "year"))
     dist_panel$treatment[is.na(dist_panel$treatment)] <- 0 
+
+    dist_panel$desig_first <- dist_panel$STATUS_YR
+    dist_panel$desig_first[is.na(dist_panel$desig_first)] <- 2012 
+    dist_panel <- dist_panel %>% group_by(ID) %>% mutate(.,desig_first = min(desig_first))
     
     desig_2012 <- dist_panel[dist_panel$year==2012,c("ID","buffer_id","dist")]
     names(desig_2012) <- c("ID","buffer_id_2012","dist_2012")
