@@ -12,6 +12,7 @@ library(rdd)
 library(multiwayvcov)
 library(stringr)
 library(stargazer)
+library(foreign)
 library(rddtools)
 library(ggplot2)
 
@@ -20,6 +21,11 @@ setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes")
 defo <- read.csv("dataframe_deforestacion.csv") %>% dplyr::select(-X)
 cov <- read.csv("geographic_covariates.csv") %>% dplyr::select(-X)
 clump <- read.csv("clump_id_dataframe_2000.csv") %>% dplyr::select(ID, clumps)
+muni <- read.csv("colombia_municipios_code_r.csv") 
+
+setwd("~/Dropbox/BANREP/Deforestacion/Datos/Conflicto")
+conflict <- read.dta("conflicto_pre2000.dta")
+x <-  merge(x,conflict, by.x = "layer", by.y = "codmun", all = TRUE)
 
 
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes/Estrategia 1")
