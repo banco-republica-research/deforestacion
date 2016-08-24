@@ -17,9 +17,9 @@ library(ggplot2)
 
 #Import datasets
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes")
-defo <- read.csv("dataframe_deforestacion.csv") %>% select(-X)
-cov <- read.csv("geographic_covariates.csv") %>% select(-X)
-clump <- read.csv("clump_id_dataframe_2000.csv") %>% select(ID, clumps)
+defo <- read.csv("dataframe_deforestacion.csv") %>% dplyr::select(-X)
+cov <- read.csv("geographic_covariates.csv") %>% dplyr::select(-X)
+clump <- read.csv("clump_id_dataframe_2000.csv") %>% dplyr::select(ID, clumps)
 
 
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes/Estrategia 1")
@@ -40,7 +40,9 @@ loss_sum <- dplyr::select(defo, c(ID, loss_sum))
 #Merge data
 defo_dist <- lapply(rds_2000, function(x){
   merge(loss_sum, x, by.x = "ID", by.y = "ID") %>%
+    mutate(., loss_sum = loss_sum * 100) %>%
     mutate(., dist_disc = ifelse(treatment == 1, 1, -1) * dist) %>%
+    mutate(., dist_disc = dist_disc / 1000) %>%
     merge(., cov, by = "ID", all.x = T) %>%
     merge(., clump, by = "ID", all.x = T) %>%
     mutate(clumps = ifelse(is.na(clumps), 0, 1))
@@ -48,17 +50,45 @@ defo_dist <- lapply(rds_2000, function(x){
 
 defo_dist_terr <- lapply(territories_2000, function(x){
   merge(loss_sum, x, by.x = "ID", by.y = "ID") %>%
+    mutate(., loss_sum = loss_sum * 100) %>%
     mutate(., dist_disc = ifelse(treatment == 1, 1, -1) * dist) %>%
+    mutate(., dist_disc = dist_disc / 1000) %>%
     merge(., cov, by = "ID", all.x = T) %>%
     merge(., clump, by = "ID", all.x = T) %>%
     mutate(clumps = ifelse(is.na(clumps), 0, 1))
 })
 
+#Regression discontinuity for fixed bandwidths (5 and 10 km)
+list_df <- c(defo_dist[2:3], defo_dist_terr)
+rd_robust_fixed_five <-  lapply(list_df, function(x){
+  rdrobust(
+    y = x$loss_sum,
+    x = x$dist_disc,
+    vce = "nn",
+    all = T,
+    h = 5
+  )
+})
+
+rd_robust_fixed_ten <-  lapply(list_df, function(x){
+  rdrobust(
+    y = x$loss_sum,
+    x = x$dist_disc,
+    vce = "nn",
+    all = T,
+    h = 10
+  )
+})
+
+
+
+df_five <- rd_to_df(rd_robust_fixed_five, list_df)
+df_ten <- rd_to_df(rd_robust_fixed_ten, list_df)
 
 #Regression discontinuity (optimal bandwidth)
 
 #All parks RD estimator
-rd_robust_parks <- lapply(defo_dist, function(park){
+rd_robust_parks_1 <- lapply(defo_dist, function(park){
   rdrobust(
     y = I(park$loss_sum * 100),
     x = park$dist_disc,
@@ -68,7 +98,7 @@ rd_robust_parks <- lapply(defo_dist, function(park){
 })
 
 
-rd_robust_terr <- lapply(defo_dist_terr, function(terr){
+rd_robust_terr_1 <- lapply(defo_dist_terr, function(terr){
   rdrobust(
     y = I(terr$loss_sum * 100),
     x = terr$dist_disc,
@@ -78,35 +108,47 @@ rd_robust_terr <- lapply(defo_dist_terr, function(terr){
 })
 
 
-setwd("~")
-rd_robust_terr <- readRDS("rd_robust_terr.rds")
-rd_robust_parks <- readRDS("rd_robust_parks.rds")
+rd_optimal <- c(rd_robust_parks_1[2:3], rd_robust_terr_1)
+df_optimal <- rd_to_df(rd_optimal, list_df)
 
-#Extract LATE's from list and create a table
+#Save results
+# setwd("~/Dropbox/BANREP/Backup Data/")
+# saveRDS(rd_robust_terr, "rd_robust_terr_1.rds")
+# saveRDS(rd_robust_parks, "rd_robust_parks_1.rds")
 
-rd_robust_park_table <- list() #Table of LATE and p-values
-for(i in 1:length(rd_robust_parks)){
-  rd_robust_park_table[[i]] <- rd_robust_parks[[i]]$tabl3.str[1, ]
-}
+#RD with controls for fixed bandwiths (5km and 10km)
 
-rd_robust_park_table <- ldply(rd_robust_park_table) %>%
-  t()
+list_df <- c(defo_dist[2:3], defo_dist_terr)
+rd_robust_fixed_five_ctrl <-  lapply(list_df, function(x){
+  rdrobust(
+    y = x$loss_sum,
+    x = x$dist_disc,
+    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$clumps),
+    cluster = x$ID,
+    all = T,
+    h = 5
+  )
+})
 
-rd_robust_terr_table <- list() #Table of LATE and p-values
-for(i in 1:length(rd_robust_terr)){
-  rd_robust_terr_table[[i]] <- rd_robust_terr[[i]]$tabl3.str[1, ]
-}
+rd_robust_fixed_ten_ctrl <-  lapply(list_df, function(x){
+  rdrobust(
+    y = x$loss_sum,
+    x = x$dist_disc,
+    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$clumps),
+    cluster = x$ID,
+    all = T,
+    h = 10
+  )
+})
 
-rd_robust_terr_table <- ldply(rd_robust_terr_table) %>%
-  t()
+df_five_ctrl <- rd_to_df(rd_robust_fixed_five_ctrl, list_df)
+df_ten_ctrl <- rd_to_df(rd_robust_fixed_ten_ctrl, list_df)
 
-rd_robust_table <- cbind(rd_robust_park_table, rd_robust_terr_table) %>%
-  stargazer()
+#Save to latex
+df_five_final <- cbind(df_five, df_five_ctrl)
+df_ten_final <- cbind(df_ten, df_ten_ctrl)
+stargazer(df_five_final, df_ten_final, summary = F)
 
-
-for(i in 1:length(rd_nonpara_table)){
-  rd_nonpara_table[, i] <- as.numeric(rd_nonpara_table[, i])
-}
 
 
 bws_list <- list()
