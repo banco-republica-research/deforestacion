@@ -17,9 +17,9 @@ library(ggplot2)
 
 #Import datasets
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes")
-defo <- read.csv("dataframe_deforestacion.csv") %>% select(-X)
-cov <- read.csv("geographic_covariates.csv") %>% select(-X)
-clump <- read.csv("clump_id_dataframe_2000.csv") %>% select(ID, clumps)
+defo <- read.csv("dataframe_deforestacion.csv") %>% dplyr::select(-X)
+cov <- read.csv("geographic_covariates.csv") %>% dplyr::select(-X)
+clump <- read.csv("clump_id_dataframe_2000.csv") %>% dplyr::select(ID, clumps)
 
 
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes/Estrategia 1")
@@ -64,7 +64,7 @@ rd_robust_fixed_five <-  lapply(list_df, function(x){
   rdrobust(
     y = x$loss_sum,
     x = x$dist_disc,
-    cluster = x$ID,
+    vce = "nn",
     all = T,
     h = 5
   )
@@ -74,7 +74,7 @@ rd_robust_fixed_ten <-  lapply(list_df, function(x){
   rdrobust(
     y = x$loss_sum,
     x = x$dist_disc,
-    cluster = x$ID,
+    vce = "nn",
     all = T,
     h = 10
   )
@@ -88,7 +88,7 @@ df_ten <- rd_to_df(rd_robust_fixed_ten, list_df)
 #Regression discontinuity (optimal bandwidth)
 
 #All parks RD estimator
-rd_robust_parks <- lapply(defo_dist, function(park){
+rd_robust_parks_1 <- lapply(defo_dist, function(park){
   rdrobust(
     y = I(park$loss_sum * 100),
     x = park$dist_disc,
@@ -98,7 +98,7 @@ rd_robust_parks <- lapply(defo_dist, function(park){
 })
 
 
-rd_robust_terr <- lapply(defo_dist_terr, function(terr){
+rd_robust_terr_1 <- lapply(defo_dist_terr, function(terr){
   rdrobust(
     y = I(terr$loss_sum * 100),
     x = terr$dist_disc,

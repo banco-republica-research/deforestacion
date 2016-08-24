@@ -62,7 +62,8 @@ rd_robust_fixed_five <-  lapply(list_df, function(x){
   rdrobust(
     y = x$loss_sum,
     x = x$dist_disc,
-    cluster = x$ID,
+    vce = "hc1",
+    nnmatch = 3,
     all = T,
     h = 5
   )
@@ -72,21 +73,22 @@ rd_robust_fixed_ten <-  lapply(list_df, function(x){
   rdrobust(
     y = x$loss_sum,
     x = x$dist_disc,
-    cluster = x$ID,
+    vce = "hc1",
+    nnmatch = 3,
     all = T,
     h = 10
   )
 })
 
 
-
 rd_to_df <- function(list, dataframe){
   rd <- lapply(list, "[", "tabl3.str") %>%
     lapply(as.data.frame) %>%
-    lapply( "[", 1 , ) %>%
+    lapply( "[", 3 , ) %>%
     ldply() %>% mutate(N_l = unlist(lapply(list, "[", "N_l"))) %>%
     mutate(N_r = unlist(lapply(list, "[", "N_r"))) %>%
-    mutate(N = N_l + N_r) 
+    mutate(N = N_l + N_r) %>%
+    mutate(bws = unlist(lapply(list, function(x) x$bws[1, 1])))
   
   defo_mean <- mapply(function(x, y){
     y %>%
@@ -98,10 +100,9 @@ rd_to_df <- function(list, dataframe){
     as.data.frame() %>% dplyr::rename(Nacionales = V1,
                    Regionales = V2, Resguardos = V3,
                    Comunidades = V4)
-  row.names(df) <- c("Tratamiento", "StdErr", "Z", "p", "CI_l", "CI_u", "N_left","N_right", "N", "Media control")
+  row.names(df) <- c("Tratamiento", "StdErr", "Z", "p", "CI_l", "CI_u", "N_left","N_right", "N", "bws", "Media control")
   return(df)
 }
-
 
 
 df_five <- rd_to_df(rd_robust_fixed_five, list_df)
@@ -112,9 +113,10 @@ df_ten <- rd_to_df(rd_robust_fixed_ten, list_df)
 
 rd_robust_parks_2 <- lapply(defo_dist, function(park){
   rdrobust(
-    y = I(park$loss_sum * 100),
+    y = park$loss_sum,
     x = park$dist_disc,
-    cluster = park$ID,
+    vce = "nn",
+    nnmatch = 3,
     all = T
   )
 })
@@ -122,9 +124,10 @@ rd_robust_parks_2 <- lapply(defo_dist, function(park){
 
 rd_robust_terr_2 <- lapply(defo_dist_terr, function(terr){
   rdrobust(
-    y = I(terr$loss_sum * 100),
+    y = terr$loss_sum,
     x = terr$dist_disc,
-    cluster = terr$ID,
+    vce = "nn",
+    nnmatch = 3,
     all = T
   )
 })
@@ -140,7 +143,7 @@ rd_robust_fixed_five_ctrl <-  lapply(list_df, function(x){
     y = x$loss_sum,
     x = x$dist_disc,
     covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$clumps),
-    cluster = x$ID,
+    vce = "nn",
     all = T,
     h = 5
   )
@@ -151,7 +154,7 @@ rd_robust_fixed_ten_ctrl <-  lapply(list_df, function(x){
     y = x$loss_sum,
     x = x$dist_disc,
     covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$clumps),
-    cluster = x$ID,
+    vce = "nn",
     all = T,
     h = 10
   )
@@ -166,6 +169,41 @@ df_five_final <- cbind(df_five, df_five_ctrl) %>%
 df_ten_final <- cbind(df_ten, df_ten_ctrl) %>%
   .[c(1, 5, 2, 6, 3, 7, 4, 8)]
 stargazer(df_five_final, df_ten_final, summary = F)
+
+
+
+#Regression discontinuity (optimal bandwidth) with controls
+
+rd_robust_parks_2_ctrl <- lapply(defo_dist, function(park){
+  rdrobust(
+    y = park$loss_sum,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$clumps),
+    vce = "nn",
+    nnmatch = 3,
+    all = T
+  )
+})
+
+
+rd_robust_terr_2_ctrl <- lapply(defo_dist_terr, function(terr){
+  rdrobust(
+    y = terr$loss_sum,
+    x = terr$dist_disc,
+    covs = cbind(terr$altura_tile_30arc, terr$slope, terr$roughness, terr$clumps),
+    vce = "nn",
+    nnmatch = 3,
+    all = T
+  )
+})
+
+rd_optimal <- c(rd_robust_parks_2_ctrl[2:3], rd_robust_terr_2_ctrl)
+df_optimal_ctrl <- rd_to_df(rd_optimal, list_df) 
+df_optimal_final <- cbind(df_optimal, df_optimal_ctrl) %>%
+  .[c(1, 5, 2, 6, 3, 7, 4, 8)]
+stargazer(df_optimal_final, summary = F)
+
+
 
 
 
