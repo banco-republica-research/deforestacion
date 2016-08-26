@@ -51,12 +51,12 @@ terr[[2]] <- readOGR(dsn = paste0(maps,"Comunidades"), layer="Comunidades_clean"
 
 for(i in 1:2){
   terr[[i]]$STATUS_YR <- as.numeric(levels(terr[[i]]$year))[terr[[i]]$year] 
-  terr[[i]]$ID <- as.numeric(terr[[i]]$ID)
+  terr[[i]]$ID <- as.numeric(terr[[i]]$OBJECTID_1)-1
 }
 
 # Distance: To any frontier, and only effective frontier
 
-for(d in c(2:2)) { 
+for(d in c(1:2)) { 
   print(paste0("distance ",d))
   
   # Read distance to Indigenous and black reserves 

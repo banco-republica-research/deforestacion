@@ -41,9 +41,10 @@ x <-  merge(x,conflict, by.x = "layer", by.y = "codmun", all = TRUE)
 ############################
 # Merge distances by type of area to defo and X
 
-areas <- c("all","national","regional", "terr1", "terr2")
+# areas <- c("all","national","regional", "terr1", "terr2")
+areas <- c("terr1", "terr2")
 
-for(d in c(1:2)) { 
+for(d in c(1:1)) { 
   print(paste0("distance ",d))
   
   for(a in areas) {
