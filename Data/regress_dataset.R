@@ -9,6 +9,8 @@ library(rgdal)
 library(stringr)
 library(plyr)
 library(dplyr)
+library(magrittr)
+library(foreign)
 
 # Leonardo
 setwd("C:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/")
@@ -24,19 +26,29 @@ data <-"Datos/Dataframes/"
 
 ########################################################
 
-# Parks
-# natural_parks <- readOGR(dsn = paste0(parks, "WDPA_June2016_COL-shapefile"), layer = "WDPA_June2016_COL-shapefile-polygons")
+# original parks for descriptives
+natural_parks <- readOGR(dsn = paste0(parks, "WDPA_June2016_COL-shapefile"), layer = "WDPA_June2016_COL-shapefile-polygons")
+natural_parks <- spTransform(natural_parks, CRS=CRS("+init=epsg:3857")) #Projection in meters
+natural_parks$area <- gArea(natural_parks, byid = T) / 1e6
+natural_parks <- as.data.frame(natural_parks)
+write.dta(natural_parks,paste0(parks,"natural_parks.dta"))
+
+# Modified parks
 parks <- readOGR(dsn = paste0(parks, "WDPA_Modificado"), layer = "WDPA_clean")
+
 vars <- c("ID","DESIG","STATUS_YR","GOV_TYPE")
 parks_b <- parks[vars]
 summary(parks_b)
 desig <- table(parks_b$DESIG)
 desig 
+
+
   
 # pixel by year (stock) and type of park (and also for groups of park types)
 all <- c(1:15)
 national <- c(2,5,7,8,11,12,13,14,15)
-regional <- c(1,3,4,6,9,10)
+regional <- c(1,3,4,6,10)
+private <- 9
 areas <- c("all","national","regional")
 
 # Distance: To any frontier, and only effective frontier
@@ -59,7 +71,7 @@ for(d in c(1:2)) {
     eval(parse(text=paste("dist_y <- dist_b[dist_b$year < ",y,",]", sep="")))
     print(dim(dist_y))
     
-    # For each park  
+    # For each park
     for(i in levels(dist_b$DESIG2)){
       print(i)
       dist_temp <- dist_y[dist_y$DESIG2==i,]
@@ -69,7 +81,7 @@ for(d in c(1:2)) {
       dist_yl[[i]] <- dist_temp
     }
     saveRDS(dist_yl, file =  paste0(data,"Estrategia ",d,"/dist_",y,".rds"))
-    
+
     # By type of area 
     for(a in areas) {
       print(paste(a, "Parks"))
@@ -108,14 +120,25 @@ for(d in c(1:2)) {
     }
   dist_panel <- do.call(rbind, dist_panel)
 
-  # Balanced panel: treatment = 0 if park did not exit in year y, and Time-invariant type of park (Use the 2012 park)
+  # Balanced panel: 
+  # Borrar ID = 0 
+  # treatment = 0 if park did not exit in year 
+  # desig_2012 = Time-invariant type of park (Use the 2012 park)
+  # Desig_first = first year of desig if multiple 
+  
+  dist_panel <- dist_panel[dist_panel$ID!=0, ]
   iddat <- expand.grid(ID = unique(dist_panel$ID), year = unique(dist_panel$year))
   dist_panel <- merge(dist_panel, iddat, all.x=TRUE, all.y=TRUE, by=c("ID", "year"))
   dist_panel$treatment[is.na(dist_panel$treatment)] <- 0 
-  
+
+  dist_panel$desig_first <- dist_panel$STATUS_YR
+  dist_panel$desig_first[is.na(dist_panel$desig_first)] <- 2012 
+  dist_panel <- dist_panel %>% group_by(ID) %>% mutate(.,desig_first = min(desig_first))
+
   desig_2012 <- dist_panel[dist_panel$year==2012,c("ID","buffer_id","dist","DESIG2")]
   names(desig_2012) <- c("ID","buffer_id_2012","dist_2012","DESIG2_2012")
   dist_panel <- merge(dist_panel, desig_2012, all.x=TRUE, all.y=TRUE, by="ID")
+
   print(dim(dist_panel))
   saveRDS(dist_panel, file =  paste0(data,"Estrategia ",d,"/dist_panel_",a,".rds"))
   }
@@ -147,6 +170,10 @@ for(d in c(1:2)) {
       iddat <- expand.grid(ID = unique(dist_panel$ID), year = c(2001:2012))
       dist_panel <- merge(dist_panel, iddat, all.x=TRUE, all.y=TRUE, by=c("ID", "year"))
       dist_panel$treatment[is.na(dist_panel$treatment)] <- 0 
+
+      dist_panel$desig_first <- dist_panel$STATUS_YR
+      dist_panel$desig_first[is.na(dist_panel$desig_first)] <- 2012 
+      dist_panel <- dist_panel %>% group_by(ID) %>% mutate(.,desig_first = min(desig_first))
       
       desig_2012 <- dist_panel[dist_panel$year==2012,c("ID","buffer_id","dist","DESIG2")]
       names(desig_2012) <- c("ID","buffer_id_2012","dist_2012","DESIG2_2012")
@@ -156,13 +183,6 @@ for(d in c(1:2)) {
     }
   }
 }
-
-
-
-
-
-
-
 
 
 
