@@ -409,8 +409,8 @@ p <- clean_treatments(list_polygons[[2]][[215]], polygon = naturaLparks_black_me
                                              shape = territories_proj_corrected[[2]])
 
 #Does it work? 
-plot(list_polygons[[2]][[467]])
-plot(list_polygons_clean_indigenous_all[[467]], add = T, col = "blue", pch = 19)
+plot(list_polygons[[1]][[171]])
+plot(list_polygons_clean_black_all[[141]], add = T, col = "blue", pch = 19)
 
 
 

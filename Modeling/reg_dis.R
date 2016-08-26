@@ -27,7 +27,7 @@ conflict_muni <- merge(muni, conflict, by.x = "layer", by.y = "codmun", all = T)
 
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes/Estrategia 2")
 list_files <- list.files()
-rds_2000 <- list_files[str_detect(list_files, "dist_2000")][c(1,2,4)] %>%
+rds_2000 <- list_files[str_detect(list_files, "dist_2000")][c(1:3)] %>%
   lapply(readRDS) %>%
   lapply(data.frame)
 
@@ -37,8 +37,8 @@ territories_2000 <- list_files[str_detect(list_files, "_2000")] %>%
   lapply(data.frame)
 
 #Aggregate deforestation (2001 - 2012)
-defo$loss_sum <- rowSums(defo[, c(4:length(names(defo)))])
-loss_sum <- dplyr::select(defo, c(ID, loss_sum))
+defo$loss_sum <- rowSums(defo[, c(4:length(names(defo)) - 1 )])
+loss_sum <- dplyr::select(defo, c(ID, loss_sum)) %>% mutate(loss_sum = loss_sum / 12)
 
 #Merge data
 defo_dist <- lapply(rds_2000, function(x){
@@ -123,7 +123,7 @@ rd_robust_fixed_five_ctrl_2 <-  lapply(list_df, function(x){
     y = x$loss_sum,
     x = x$dist_disc,
     covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$clumps, x$hom_pc, x$pres_cerac_1),
-    cluster = x$ID,
+    vce = "hc1",
     all = T,
     h = 5
   )
@@ -134,7 +134,7 @@ rd_robust_fixed_ten_ctrl_2 <-  lapply(list_df, function(x){
     y = x$loss_sum,
     x = x$dist_disc,
     covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$clumps, x$hom_pc, x$pres_cerac_1),
-    cluster = x$ID,
+    vce = "nn",
     all = T,
     h = 10
   )
@@ -192,8 +192,8 @@ territories_2000 <- list_files[str_detect(list_files, "_2000")] %>%
   lapply(data.frame)
 
 #Aggregate deforestation (2001 - 2012)
-defo$loss_sum <- rowSums(defo[, c(4:length(names(defo)))])
-loss_sum <- dplyr::select(defo, c(ID, loss_sum))
+defo$loss_sum <- rowSums(defo[, c(4:length(names(defo)) - 1 )])
+loss_sum <- dplyr::select(defo, c(ID, loss_sum)) %>% mutate(loss_sum = loss_sum / 12)
 
 #Merge data
 
@@ -277,7 +277,7 @@ rd_robust_fixed_five_ctrl_1 <-  lapply(list_df, function(x){
     y = x$loss_sum,
     x = x$dist_disc,
     covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$clumps, x$hom_pc, x$pres_cerac_1),
-    cluster = x$ID,
+    vce = "nn",
     all = T,
     h = 5
   )
@@ -288,7 +288,7 @@ rd_robust_fixed_ten_ctrl_1 <-  lapply(list_df, function(x){
     y = x$loss_sum,
     x = x$dist_disc,
     covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$clumps, x$hom_pc, x$pres_cerac_1),
-    cluster = x$ID,
+    vce = "nn",
     all = T,
     h = 10
   )
@@ -345,10 +345,11 @@ rd_to_df <- function(list, dataframe){
       summarize(mean = mean(loss_sum))
   }, x = list , y = dataframe, SIMPLIFY = F) %>% unlist()
   
-  df <- rd %>% cbind(., defo_mean) %>% t() %>% 
+  df <- rd %>% cbind(., defo_mean) %>% t() %>%
     as.data.frame() %>% dplyr::rename(Nacionales = V1,
                                       Regionales = V2, Resguardos = V3,
-                                      Comunidades = V4)
+                                      Comunidades = V4) %>%
+    mutate_all(funs(as.character)) %>% mutate_all(funs(as.numeric))
   row.names(df) <- c("Tratamiento", "StdErr", "Z", "p", "CI_l", "CI_u", "N_left","N_right", "N", "bws", "Media control")
   return(df)
 }
@@ -356,44 +357,43 @@ rd_to_df <- function(list, dataframe){
 
 #Strategy 2 - Fixed bw's
 
-df_five <- rd_to_df(rd_robust_fixed_five, list_df)
-df_ten <- rd_to_df(rd_robust_fixed_ten, list_df)
-df_five_ctrl <- rd_to_df(rd_robust_fixed_five_ctrl, list_df)
-df_ten_ctrl <- rd_to_df(rd_robust_fixed_ten_ctrl, list_df)
+df_five <- rd_to_df(rd_robust_fixed_five_2, list_df)
+df_ten <- rd_to_df(rd_robust_fixed_ten_2, list_df)
+df_five_ctrl <- rd_to_df(rd_robust_fixed_five_ctrl_2, list_df)
+df_ten_ctrl <- rd_to_df(rd_robust_fixed_ten_ctrl_2, list_df)
 
 df_five_final <- cbind(df_five, df_five_ctrl) %>%
   .[c(1, 5, 2, 6, 3, 7, 4, 8)]
 df_ten_final <- cbind(df_ten, df_ten_ctrl) %>%
   .[c(1, 5, 2, 6, 3, 7, 4, 8)]
-stargazer(df_five_final, df_ten_final, summary = F)
+stargazer(df_five_final, df_ten_final, summary = F, decimal.mark = ",", digits = 3, digit.separator = ".")
 
 #Strategy 2 - Optimal bw's
 
 rd_optimal <- c(rd_robust_parks_2[2:3], rd_robust_terr_2)
 df_optimal <- rd_to_df(rd_optimal, list_df)
 
-
 rd_optimal_ctrl <- c(rd_robust_parks_2_ctrl[2:3], rd_robust_terr_2_ctrl)
 df_optimal_ctrl <- rd_to_df(rd_optimal_ctrl, list_df) 
 df_optimal_final <- cbind(df_optimal, df_optimal_ctrl) %>%
   .[c(1, 5, 2, 6, 3, 7, 4, 8)]
-stargazer(df_optimal_final, summary = F)
+stargazer(df_optimal_final, summary = F, decimal.mark = ",", digits = 3)
 
 #Strategy 1 - Fixed bw's
 
-df_five <- rd_to_df(rd_robust_fixed_five, list_df)
-df_ten <- rd_to_df(rd_robust_fixed_ten, list_df)
-df_five_ctrl <- rd_to_df(rd_robust_fixed_five_ctrl, list_df)
-df_ten_ctrl <- rd_to_df(rd_robust_fixed_ten_ctrl, list_df)
+df_five <- rd_to_df(rd_robust_fixed_five_1, list_df)
+df_ten <- rd_to_df(rd_robust_fixed_ten_1, list_df)
+df_five_ctrl <- rd_to_df(rd_robust_fixed_five_ctrl_1, list_df)
+df_ten_ctrl <- rd_to_df(rd_robust_fixed_ten_ctrl_1, list_df)
 
 df_five_final <- cbind(df_five, df_five_ctrl) %>%
   .[c(1, 5, 2, 6, 3, 7, 4, 8)]
 df_ten_final <- cbind(df_ten, df_ten_ctrl) %>%
   .[c(1, 5, 2, 6, 3, 7, 4, 8)]
-stargazer(df_five_final, df_ten_final, summary = F)
+stargazer(df_five_final, df_ten_final, summary = F, decimal.mark = ",", digits = 3)
 
 
-#Strategy 2 - Optimal bw's
+#Strategy 1 - Optimal bw's
 
 rd_optimal <- c(rd_robust_parks_1[2:3], rd_robust_terr_1)
 df_optimal <- rd_to_df(rd_optimal, list_df)
@@ -402,5 +402,202 @@ rd_optimal_ctrl <- c(rd_robust_parks_1_ctrl[2:3], rd_robust_terr_1_ctrl)
 df_optimal_ctrl <- rd_to_df(rd_optimal_ctrl, list_df) 
 df_optimal_final <- cbind(df_optimal, df_optimal_ctrl) %>%
   .[c(1, 5, 2, 6, 3, 7, 4, 8)]
-stargazer(df_optimal_final, summary = F)
+stargazer(df_optimal_final, summary = F, decimal.mark = ",", digits = 3)
+
+
+################################################# HETEROGENEUS EFFECTS #################################################
+###################################################### STRATEGY 2 ######################################################
+
+#Heterogeneus effects by clump and fixed bw's (5 km)
+
+list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, clumps == 1))
+rd_robust_fixed_five_clump1_2 <-  lapply(list_df, function(x){
+  rdrobust(
+    y = x$loss_sum,
+    x = x$dist_disc,
+    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$hom_pc, x$pres_cerac_1),
+    vce = "nn",
+    all = T,
+    h = 5
+  )
+})
+
+list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+  lapply(function(x) filter(x, clumps == 0))
+rd_robust_fixed_five_clump0_2 <-  lapply(list_df, function(x){
+  rdrobust(
+    y = x$loss_sum,
+    x = x$dist_disc,
+    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$hom_pc, x$pres_cerac_1),
+    vce = "nn",
+    all = T,
+    h = 5
+  )
+})
+
+
+#Heterogeneus effects by clump and fixed bw's (10 km)
+
+list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, clumps == 1))
+rd_robust_fixed_ten_clump1_2 <-  lapply(list_df, function(x){
+  rdrobust(
+    y = x$loss_sum,
+    x = x$dist_disc,
+    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$hom_pc, x$pres_cerac_1),
+    vce = "nn",
+    all = T,
+    h = 10
+  )
+})
+
+list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+  lapply(function(x) filter(x, clumps == 0))
+rd_robust_fixed_ten_clump0_2 <-  lapply(list_df, function(x){
+  rdrobust(
+    y = x$loss_sum,
+    x = x$dist_disc,
+    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$hom_pc, x$pres_cerac_1),
+    vce = "nn",
+    all = T,
+    h = 10
+  )
+})
+
+#Heterogeneus effects by conflict -presence of and armed actor- and fixed bw's (5 km)
+
+list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, pres_cerac_1 == 1))
+rd_robust_fixed_five_con1_2 <-  lapply(list_df, function(x){
+  rdrobust(
+    y = x$loss_sum,
+    x = x$dist_disc,
+    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$clumps),
+    vce = "nn",
+    all = T,
+    h = 5
+  )
+})
+
+list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, pres_cerac_1 == 0))
+rd_robust_fixed_five_con0_2 <-  lapply(list_df, function(x){
+  rdrobust(
+    y = x$loss_sum,
+    x = x$dist_disc,
+    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$clumps),
+    vce = "nn",
+    all = T,
+    h = 5
+  )
+})
+
+
+
+#Heterogeneus effects by conflict -presence of and armed actor- and fixed bw's (10 km)
+
+list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, pres_cerac_1 == 1))
+rd_robust_fixed_ten_con1_2 <-  lapply(list_df, function(x){
+  rdrobust(
+    y = x$loss_sum,
+    x = x$dist_disc,
+    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$clumps),
+    vce = "nn",
+    all = T,
+    h = 10
+  )
+})
+
+list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, pres_cerac_1 == 0))
+rd_robust_fixed_ten_con0_2 <-  lapply(list_df, function(x){
+  rdrobust(
+    y = x$loss_sum,
+    x = x$dist_disc,
+    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$clumps),
+    vce = "nn",
+    all = T,
+    h = 10
+  )
+})
+
+
+#Heterogeneus effects by clump and optimal bw's
+
+list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, clumps == 1))
+rd_robust_clump1_2 <- lapply(list_df, function(park){
+  rdrobust(
+    y = park$loss_sum,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$hom_pc, park$pres_cerac_1),
+    vce = "nn",
+    nnmatch = 3,
+    all = T
+  )
+})
+
+
+
+list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, clumps == 0))
+rd_robust_clump0_2 <- lapply(list_df, function(park){
+  rdrobust(
+    y = park$loss_sum,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$hom_pc, park$pres_cerac_1),
+    vce = "nn",
+    nnmatch = 3,
+    all = T
+  )
+})
+
+
+
+setwd("~/Dropbox/BANREP/Backup Data/")
+saveRDS(rd_robust_clump1_2, "rd_robust_clump1_2.rds")
+saveRDS(rd_robust_clump0_2, "rd_robust_clump0_2.rds")
+
+
+
+#Heterogeneus effects by conflict -presence of and armed actor- and optimal bw's
+
+list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, pres_cerac_1 == 1))
+rd_robust_con1_2 <- lapply(list_df, function(park){
+  rdrobust(
+    y = park$loss_sum,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, x$clumps),
+    vce = "nn",
+    nnmatch = 3,
+    all = T
+  )
+})
+
+
+list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, pres_cerac_1 == 0))
+rd_robust_con0_2 <- lapply(list_df, function(park){
+  rdrobust(
+    y = park$loss_sum,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, x$clumps),
+    vce = "nn",
+    nnmatch = 3,
+    all = T
+  )
+})
+
+
+
+setwd("~/Dropbox/BANREP/Backup Data/")
+saveRDS(rd_robust_con1_2, "rd_robust_con1_2.rds")
+saveRDS(rd_robust_con0_2, "rd_robust_con0_2.rds")
+
+
+
+
 

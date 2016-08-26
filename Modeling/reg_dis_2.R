@@ -32,7 +32,7 @@ territories_2000 <- list_files[str_detect(list_files, "_2000")] %>%
   lapply(data.frame)
 
 #Aggregate deforestation (2001 - 2012)
-defo$loss_sum <- rowSums(defo[, c(4:length(names(defo)))])
+defo$loss_sum <- rowSums(defo[, c(4:length(names(defo)) - 1 )])
 loss_sum <- dplyr::select(defo, c(ID, loss_sum))
 
 #Merge data
@@ -62,7 +62,7 @@ rd_robust_fixed_five <-  lapply(list_df, function(x){
   rdrobust(
     y = x$loss_sum,
     x = x$dist_disc,
-    vce = "hc1",
+    vce = "nn",
     nnmatch = 3,
     all = T,
     h = 5
@@ -73,7 +73,7 @@ rd_robust_fixed_ten <-  lapply(list_df, function(x){
   rdrobust(
     y = x$loss_sum,
     x = x$dist_disc,
-    vce = "hc1",
+    vce = "nn",
     nnmatch = 3,
     all = T,
     h = 10
@@ -251,20 +251,25 @@ rd_robust_fixed_ten_ctrl <-  lapply(list_df, function(x){
 
 #Graphs for RD (using rdrobust)
 
+defo_dist_all <- c(defo_dist[2:3] ,defo_dist_terr) #Collapse all dataframes into one list and remove "all"
+
 setwd("~/Dropbox/BANREP/Deforestacion/Results/RD/Graphs/")
 mapply(function(x, type){
   pdf(str_c("RD_", type, ".pdf"), height=6, width=12)
   rdplot(
-    y = (x$loss_sum) * 100,
-    x = (x$dist_disc) / 1000,
+    y = x$loss_sum,
+    x = x$dist_disc,
+    kernel = "triangular",
+    shade = TRUE,
     binselect = "es",
-    y.lim = c(0, 4),
+    y.lim = c(0, 0.3),
+    x.lim = c(-20, 20),
     title = str_c("Regression discontinuity for", type, sep = " "),
     x.label = "Distance to national park frontier (meters)",
     y.label = "Deforestation (Ha x km2)",
     ci = 95)
   dev.off()
-}, x = defo_dist, type = c("all parks", "national parks", "regional parks"))
+}, x = defo_dist, type = c("national parks", "regional parks", "resguardos", "blacks"))
 
 setwd("~/Dropbox/BANREP/Deforestacion/Results/RD/Graphs/")
 mapply(function(x, type){
@@ -290,13 +295,13 @@ mapply(function(x, type){
 defo_dist_all <- c(defo_dist[2:3] ,defo_dist_terr) #Collapse all dataframes into one list and remove "all"
 
 l <- lapply(defo_dist_all, function(x){
-  mutate(x, bin = cut(x$dist_disc / 1000, breaks = c(-50:50), include.lowest = T)) %>%
+  mutate(x, bin = cut(x$dist_disc, breaks = seq(-50, 50, by = 0.1), include.lowest = T)) %>%
     group_by(bin) %>%
     summarize(meanbin = mean(loss_sum), sdbin = sd(loss_sum), n = length(ID)) %>%
     .[complete.cases(.),] %>%
     as.data.frame() %>%
-    mutate(treatment = ifelse(as.numeric(row.names(.)) > 50, 1, 0), bins = row.names(.)) %>%
-    mutate(bins = mapvalues(.$bins, from = c(1:100), to = c(-50:49)))
+    mutate(treatment = ifelse(as.numeric(row.names(.)) > 500, 1, 0), bins = row.names(.)) %>%
+    mutate(bins = mapvalues(.$bins, from = c(1:1000), to = seq(-50, 49.9, by = 0.1)))
 })
 
 
@@ -304,11 +309,12 @@ l <- lapply(defo_dist_all, function(x){
 #Individual graphs for all territories (natural parks + territories)
 setwd("~/Dropbox/BANREP/Deforestacion/Results/RD/Graphs/")
 mapply(function(x, type){
-  g <- ggplot(x, aes(y = (meanbin * 100), x = as.numeric(bins), colour = as.factor(treatment))) 
-  g <- g + stat_smooth(method = "auto") 
+  g <- ggplot(x, aes(y = (meanbin), x = as.numeric(bins), colour = as.factor(treatment))) 
+  g <- g + stat_smooth(method = "locfit", span =  c(0.1, 20), deg = 1, kern="tria") 
   g <- g + geom_point(colour = "black", size = 1)
-  g <- g + scale_y_continuous(limits = c(0, 6))
   g <- g + labs(x = "Distancia (Km.)", y = "Deforestación (Ha x Km2)")
+  g <- g + scale_x_continuous(limits = c(-20, 20))
+  g <- g + scale_y_continuous(limits = c(0, 0.3))
   g <- g + ggtitle(str_c("Discontinuidad\n", "para", type, sep = " "))
   g <- g + guides(colour = FALSE)
   g <- g + theme_bw()
