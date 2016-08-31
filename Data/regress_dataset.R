@@ -6,6 +6,7 @@
 rm(list=ls())
 library(data.table)
 library(rgdal)
+library(rgeos)
 library(stringr)
 library(plyr)
 library(dplyr)
@@ -15,7 +16,7 @@ library(foreign)
 # Leonardo
 setwd("C:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/")
 # Ivan 
-# setwd("Dropbox/BANREP/Deforestacion/")
+# setwd("~/Dropbox/BANREP/Deforestacion/")
 
 parks <-"Datos/UNEP/"
 data <-"Datos/Dataframes/"
@@ -30,7 +31,17 @@ data <-"Datos/Dataframes/"
 natural_parks <- readOGR(dsn = paste0(parks, "WDPA_June2016_COL-shapefile"), layer = "WDPA_June2016_COL-shapefile-polygons")
 natural_parks <- spTransform(natural_parks, CRS=CRS("+init=epsg:3857")) #Projection in meters
 natural_parks$area <- gArea(natural_parks, byid = T) / 1e6
-natural_parks <- as.data.frame(natural_parks)
+natural_parks <- as.data.frame(natural_parks) %>%
+.[!(.$NAME %in% c("Malpelo Fauna and Flora Sanctuary", 
+                       "Old Providence Mc Bean Lagoon",
+                       "Malpelo",
+                       "Jhonny Cay Regional Park",
+                       "The Peak Regional Park",
+                       "Corales De Profundidad",
+                       "Los Corales Del Rosario Y De San Bernardo",
+                       "Gorgona",
+                       "Acandi Playon Y Playona",
+                       "Uramba Bahia Malaga")), ]
 write.dta(natural_parks,paste0(parks,"natural_parks.dta"))
 
 # Modified parks

@@ -295,13 +295,13 @@ mapply(function(x, type){
 defo_dist_all <- c(defo_dist[2:3] ,defo_dist_terr) #Collapse all dataframes into one list and remove "all"
 
 l <- lapply(defo_dist_all, function(x){
-  mutate(x, bin = cut(x$dist_disc, breaks = seq(-50, 50, by = 0.1), include.lowest = T)) %>%
+  mutate(x, bin = cut(as.numeric(x$dist_disc), breaks = c(-50:50), include.lowest = T)) %>%
     group_by(bin) %>%
     summarize(meanbin = mean(loss_sum), sdbin = sd(loss_sum), n = length(ID)) %>%
     .[complete.cases(.),] %>%
     as.data.frame() %>%
-    mutate(treatment = ifelse(as.numeric(row.names(.)) > 500, 1, 0), bins = row.names(.)) %>%
-    mutate(bins = mapvalues(.$bins, from = c(1:1000), to = seq(-50, 49.9, by = 0.1)))
+    mutate(treatment = ifelse(as.numeric(row.names(.)) > 50, 1, 0), bins = row.names(.)) %>%
+    mutate(bins = mapvalues(.$bins, from = c(1:100), to = c(-50:49)))
 })
 
 
@@ -310,7 +310,7 @@ l <- lapply(defo_dist_all, function(x){
 setwd("~/Dropbox/BANREP/Deforestacion/Results/RD/Graphs/")
 mapply(function(x, type){
   g <- ggplot(x, aes(y = (meanbin), x = as.numeric(bins), colour = as.factor(treatment))) 
-  g <- g + stat_smooth(method = "locfit", span =  c(0.1, 20), deg = 1, kern="tria") 
+  g <- g + stat_smooth(method = "auto") 
   g <- g + geom_point(colour = "black", size = 1)
   g <- g + labs(x = "Distancia (Km.)", y = "Deforestación (Ha x Km2)")
   g <- g + scale_x_continuous(limits = c(-20, 20))
@@ -323,7 +323,9 @@ mapply(function(x, type){
 }, x = l, type = c("Áreas protegidas nacionales","Áreas protegidas regionales","Resguardos indígenas", "Comunidades negras"))
 
 #Facet graph
-
+setwd("~/Dropbox/BANREP/Deforestacion/Results/RD/Graphs/")
+library(tidyr)
+library(locfit)
 l_all <- data.frame(l) %>%
   select(-bin.1, -bin.2, -bin.3, -bins.1, -bins.2, -bins.3, -treatment.1, -treatment.2, -treatment.3) %>%
   gather(key, value, -bins, -bin, -treatment) %>%
@@ -339,11 +341,12 @@ l_all <- data.frame(l) %>%
 
 
 
-g <- ggplot(l_all, aes(y = (meanbin * 100), x = as.numeric(bins), colour = as.factor(treatment))) 
+g <- ggplot(l_all, aes(y = meanbin, x = as.numeric(bins), colour = as.factor(treatment))) 
 g <- g + facet_wrap( ~ type, ncol=2)
-g <- g + stat_smooth(method = "auto") 
+g <- g + stat_smooth(method = "loess") 
 g <- g + geom_point(colour = "black", size = 1)
-g <- g + scale_y_continuous(limits = c(0, 6))
+g <- g + scale_x_continuous(limits = c(-20, 20))
+g <- g + scale_y_continuous(limits = c(0, 0.3))
 g <- g + labs(x = "Distancia (Km)", y = "Deforestación (Ha x Km2)")
 g <- g + guides(colour = FALSE)
 g <- g + theme_bw()
