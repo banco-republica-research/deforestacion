@@ -51,8 +51,8 @@ vars <- c("ID","DESIG","STATUS_YR","GOV_TYPE")
 parks_b <- parks[vars]
 summary(parks_b)
 desig <- table(parks_b$DESIG)
-desig 
-
+parks_b$DESIG2 <- mapvalues(parks_b$DESIG, levels(parks_b$DESIG), c(1:15))
+table(parks_b$DESIG,parks_b$DESIG2)
 
   
 # pixel by year (stock) and type of park (and also for groups of park types)
@@ -71,7 +71,7 @@ for(d in c(1:2)) {
   
   # Merge 
   dist_b <- merge(dist, parks_b, by.x="buffer_id", by.y="ID")
-  dist_b$DESIG2 <- mapvalues(dist_b$DESIG, levels(dist_b$DESIG), c(1:15))
+#  dist_b$DESIG2 <- mapvalues(dist_b$DESIG, levels(dist_b$DESIG), c(1:15))
   dist_b$year <- as.numeric(dist_b$STATUS_YR)
   dim(dist_b)
 
