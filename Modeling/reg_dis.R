@@ -21,6 +21,7 @@ setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes")
 defo <- read.csv("dataframe_deforestacion.csv") %>% dplyr::select(-X)
 cov <- read.csv("geographic_covariates.csv") %>% dplyr::select(-X)
 clump <- read.csv("clump_id_dataframe_2000.csv") %>% dplyr::select(ID, clumps)
+treecover <- read.csv("treecover_2000.csv") %>% dplyr::select(ID, treecover_agg)
 
 #Conflict covariates (municipal level)
 # muni <- read.csv("colombia_municipios_code_r.csv") %>% dplyr::select(ID, layer)
@@ -51,6 +52,7 @@ defo_dist <- lapply(rds_2000, function(x){
     mutate(., dist_disc = dist_disc / 1000) %>%
     merge(., cov, by = "ID", all.x = T) %>%
     merge(., clump, by = "ID", all.x = T) %>%
+    merge(., treecover, by = "ID") %>%
     mutate(clumps = ifelse(is.na(clumps), 0, 1))
 })
 
@@ -61,6 +63,7 @@ defo_dist_terr <- lapply(territories_2000, function(x){
     mutate(., dist_disc = dist_disc / 1000) %>%
     merge(., cov, by = "ID", all.x = T) %>%
     merge(., clump, by = "ID", all.x = T) %>%
+    merge(., treecover, by = "ID") %>%
     mutate(clumps = ifelse(is.na(clumps), 0, 1))
 })
 
@@ -204,6 +207,7 @@ defo_dist <- lapply(rds_2000, function(x){
     mutate(., dist_disc = dist_disc / 1000) %>%
     merge(., cov, by = "ID", all.x = T) %>%
     merge(., clump, by = "ID", all.x = T) %>%
+    merge(., treecover, by = "ID") %>%
     mutate(clumps = ifelse(is.na(clumps), 0, 1))
 })
 
@@ -214,6 +218,7 @@ defo_dist_terr <- lapply(territories_2000, function(x){
     mutate(., dist_disc = dist_disc / 1000) %>%
     merge(., cov, by = "ID", all.x = T) %>%
     merge(., clump, by = "ID", all.x = T) %>%
+    merge(., treecover, by = "ID") %>%
     mutate(clumps = ifelse(is.na(clumps), 0, 1))
 })
 

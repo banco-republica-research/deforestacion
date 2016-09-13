@@ -5,7 +5,7 @@ library(rgeos)
 
 
 #Get deforestation raster for reference 
-setwd("/Volumes/LaCie/Deforestacion/Hansen")
+setwd("~/Dropbox/BANREP/Deforestacion/Datos/HansenProcessed/")
 res <- brick("loss_year_brick_1km.tif")
 
 #Get administrative GIS data
@@ -14,12 +14,6 @@ colombia_municipios <-
   readOGR(dsn = "Geografia", layer="Municipios") %>%
   spTransform(CRS=CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
 
-
-#Remove islands
-#Remove municipalities that are out of continental land (Malpelo and Providencia)
-colombia_municipios <- 
-  colombia_municipios[!(colombia_municipios@data$NOM_MUNICI %in% c("PROVIDENCIA Y SANTA CATALINA (Santa Isabel)",
-                           "SAN ANDRÉS", "SANTA CATALINA") | colombia_municipios@data$COD_DEPTO == 88) , ]
 
 #Get nightlight data
 processing_rasters <- function(layer.list, ext, shape){
@@ -60,7 +54,6 @@ write.csv(clump_lights_df, "Clumps/clump_id_dataframe_2000.csv")
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/Rasters/")
 elevation <- raster("altura_tile_30arc.tif") %>%
   crop(colombia_municipios) %>%
-  setExtent(rasters_lights[[1]]) %>%
   mask(colombia_municipios) %>%
   resample(., res[[1]])
 
@@ -78,11 +71,49 @@ dataframes_extract <- list(elevation, slope, roughness, tri) %>%
     x$ID <- row.names(x); x
   })
 
-# 2. Merge
+
+#Get climate 
+setwd("~/Dropbox/BANREP/Deforestacion/Datos/Rasters/wc2/")
+list_files <- list.files() %>%
+  str_detect("prec")
+
+prec <- lapply(list.files()[list_files], raster) %>%
+  brick() %>%
+  lapply(crop, colombia_municipios) %>%
+  lapply(mask, colombia_municipios) %>%
+  resample(res[[1]], filename = "prec_1km.tif",
+           format = "GTiff",
+           options = "INTERLEAVE=BAND", 
+           progress = "text", overwrite = T)
+
+prec_df <- as.data.frame(prec, na.rm = T, xy = T)
+prec_df$ID <- row.names(prec_df)
+dataframes_extract[[4]] <- prec_df
+
+#Soil quality 
+setwd("~/Dropbox/BANREP/Deforestacion/Datos/Rasters/soil_quality/")
+list_files <- list.files()
+
+sq <- lapply(list_files, raster) %>%
+  brick() %>%
+  crop(colombia_municipios) %>%
+  mask(colombia_municipios) %>%
+  resample(res[[1]], filename = "sq_1km.tif",
+           format = "GTiff",
+           options = "INTERLEAVE=BAND", 
+           progress = "text", overwrite = T)
+
+sq_df <- as.data.frame(sq, na.rm = T, xy = T)
+sq_df$ID <- row.names(sq_df)
+dataframes_extract[[5]] <- sq_df
+
+#Merge
 merge_rasters_dataframes <- Reduce(function(...) merge(..., by="ID"), dataframes_extract) 
 #Export .csv with clumps and ID
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/")
 write.csv(merge_rasters_dataframes, "geographic_covariates.csv")
+
+
 
 
 

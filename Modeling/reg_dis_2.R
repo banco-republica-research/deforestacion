@@ -292,10 +292,10 @@ mapply(function(x, type){
 
 #Discontinuity plot (ggplot2)
 
-defo_dist_all <- c(defo_dist[2:3] ,defo_dist_terr) #Collapse all dataframes into one list and remove "all"
+defo_dist_all <- c(defo_dist[2:3], defo_dist_terr) #Collapse all dataframes into one list and remove "all"
 
 l <- lapply(defo_dist_all, function(x){
-  mutate(x, bin = cut(as.numeric(x$dist_disc), breaks = c(-50:50), include.lowest = T)) %>%
+  mutate(x, bin = cut(x$dist_disc, breaks = c(-50:50), include.lowest = T)) %>%
     group_by(bin) %>%
     summarize(meanbin = mean(loss_sum), sdbin = sd(loss_sum), n = length(ID)) %>%
     .[complete.cases(.),] %>%
@@ -351,6 +351,6 @@ g <- g + labs(x = "Distancia (Km)", y = "Deforestación (Ha x Km2)")
 g <- g + guides(colour = FALSE)
 g <- g + theme_bw()
 g
-ggsave("RDggplot_all_strategy2.pdf", width=30, height=20, units="cm")
+ggsave("RDggplot_all_strategy1.pdf", width=30, height=20, units="cm")
 
 

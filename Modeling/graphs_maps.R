@@ -1,6 +1,9 @@
 library(rgeos)
+library(dplyr)
+library(forcats)
 library(tidyr)
 library(rgdal)
+library(forcats)
 library(ggplot2)
 
 # Maps and Facts
@@ -25,8 +28,8 @@ natural_parks <- list(natural_parks, natural_parks_proj) %>%
   })
 
 setwd("/Users/Ivan/Dropbox/BANREP/Deforestacion/Datos")
-black_territories <- readOGR(dsn = "Comunidades", layer="Tierras de Comunidades Negras (2015) ")
-indigenous_territories <- readOGR(dsn = "Resguardos", layer="Resguardos Indigenas (2015) ") 
+black_territories <- readOGR(dsn = "Comunidades", layer="Tierras de Comunidades Negras (2015)")
+indigenous_territories <- readOGR(dsn = "Resguardos", layer="Resguardos Indigenas (2015)") 
 colnames(indigenous_territories@data)[8] <- "RESOLUCION"
 
 #Aggregate area data per year for territories 
@@ -35,36 +38,54 @@ territories <-
   list(black_territories, indigenous_territories) %>%
   lapply(spTransform, CRS=CRS("+init=epsg:3857")) %>%
   lapply(., function(x){
-    mutate(x@data, year = str_replace_all(str_extract(x@data$"RESOLUCION", "[-][1-2][0, 9][0-9][0-9]"), "-", "")
+    mutate(x@data, STATUS_YR = str_replace_all(str_extract(x@data$"RESOLUCION", "[-][1-2][0, 9][0-9][0-9]"), "-", "")
            , area = gArea(x, byid = T) / 1e6) %>%
-      group_by(year) %>%
+      group_by(STATUS_YR) %>%
       summarize(total_area = sum(area))
 }) %>%
-  Reduce(function(...) merge(..., by = "year", all = T, suffixes = c("_black", "_indigenous")), .)
+  Reduce(function(...) merge(..., by = "STATUS_YR", all = T, suffixes = c("_black", "_indigenous")), .) %>%
+  gather(., type, total_area, total_area_black, total_area_indigenous) %>%
+  mutate(., type = as.factor(type)) %>% mutate(., type = fct_recode(type, "Comunidades Negras" = "total_area_black", 
+                                                                   "Resguardos Indígenas" = "total_area_indigenous"),
+                                               STATUS_YR = as.integer(STATUS_YR))
+  
 
 # Aggregate area data for natural parks  
+regional <- c("Distritos De Conservacion De Suelos",
+              "Distritos Regionales De Manejo Integrado",
+              "Parque Natural Regional",
+              "Reservas Forestales Protectoras Regionales",
+              " A\u0081reas De Recreacion")
+
 
 parks <- natural_parks[[2]]@data %>%
   mutate(., area = gArea(natural_parks[[2]], byid = T) / 1e6) %>%
-  group_by(STATUS_YR) %>%
-  summarize(total_area_parks = sum(area))
+  mutate(., regional = ifelse(DESIG %in% regional, 1, 0)) %>%
+  mutate(regional = as.factor(regional)) %>% mutate(.,type = fct_recode(regional, Regional = "1", Nacional = "0")) %>%
+  group_by(STATUS_YR, type) %>%
+  summarize(total_area = sum(area))
 
 #Merge all
 
-all <- merge(parks, territories, by.y = "year", by.x = "STATUS_YR", all = T) %>%
-  gather(., type, total_area, total_area_parks:total_area_indigenous) %>%
-  .[complete.cases(.), ]
+all <- rbind(as.data.frame(parks), territories) %>%
+  mutate(total_area = ifelse(is.na(total_area), 0, total_area)) %>%
+  mutate(cumsum = ave(total_area, type, FUN = cumsum)) %>%
+  mutate(cumsum = round(cumsum, 4)) %>%
+  arrange(STATUS_YR)
+
 
 setwd("~/Dropbox/BANREP/Deforestacion/Results/Graphs:Misc/")
-g <- ggplot(all, aes(y = total_area, x =  as.numeric(STATUS_YR), colour = type))
+g <- ggplot(all, aes(y = cumsum / 1000, x = STATUS_YR, colour = type))
 g <- g + geom_line(size = 1)
-g <- g + labs(x="Year", y= "Area (Km2)", title = "Total area per territory type \n(1996 - 2015)") 
-g <- g + scale_colour_discrete(name = "Type of territory", breaks = c("total_area_black", "total_area_indigenous", "total_area_parks"),
-                             labels = c("Afro Communitary", "Indigenous", "Parks"))
+g <- g + labs(x="Año", y = expression(Area~(miles~de~km^{2})))
+g <- g + scale_colour_discrete(name = "Área Protegida") 
+g <- g + scale_x_continuous(limits = c(1940, 2014), breaks = seq(1940, 2014, by = 5))
+g <- g + geom_vline(xintercept = 2000, colour="gray", linetype = "longdash")
 g <- g + theme_bw()
-g <- g + theme(legend.position = c(.85, .85))
+g <- g + theme(legend.position = c(.15, .85))
+g <- g + theme(axis.text = element_text(size = 12), axis.title = element_text(size = 14))
 g
-ggsave(str_c("total_areas.pdf"), width=30, height=20, units="cm")
+ggsave(str_c("total_areas_geomarea.pdf"), width=30, height=20, units="cm")
 
 #Total deforestation year (total)
 
