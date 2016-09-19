@@ -2,7 +2,9 @@ library(raster)
 library(magrittr)
 library(rgdal)
 library(rgeos)
-
+library(plyr)
+library(dplyr)
+library(stringr)
 
 #Get deforestation raster for reference 
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/HansenProcessed/")
@@ -36,18 +38,12 @@ rasters_lights <- processing_rasters(list_raster, rasters_extent, colombia_munic
 #Clumps to identify cities (queen) for 2005
 clump_lights <- clump(rasters_lights[[13]], directions = 8) %>%
   resample(., res[[1]])
-clump_lights_df <- as.data.frame(clump_lights, xy = T, na.rm = T)
-clump_lights_df$ID <- row.names(clump_lights_df)
-clump_lights_df$clumps <- 1 #Remove clump identifier (because yes ;] )
-
+clump_lights[clump_lights > 1] <- 1
 
 #Clumps to polygons
 p1 <- rasterToPolygons(clump_lights, dissolve = T)
 setwd("~/Dropbox/BANREP/Deforestacion/Datos")
-writeOGR(p1, "Clumps/polygon_clump_layer_2000.shp",layer = "clumps", driver = "ESRI Shapefile")
-
-#Export .csv with clumps and ID
-write.csv(clump_lights_df, "Clumps/clump_id_dataframe_2000.csv")
+writeOGR(p1, "Clumps/polygon_clump_layer_2000.shp",layer = "clumps", driver = "ESRI Shapefile", overwrite_layer = T)
 
 
 #Process data
@@ -57,20 +53,10 @@ elevation <- raster("altura_tile_30arc.tif") %>%
   mask(colombia_municipios) %>%
   resample(., res[[1]])
 
-
 # 6. Slope and aspects
 slope <- terrain(elevation, opt = "slope")
 roughness  <- terrain(elevation, opt = "roughness")
 tri <- terrain(elevation, opt = "TRI")
-
-
-#Extract data 
-dataframes_extract <- list(elevation, slope, roughness, tri) %>%
-  lapply(as.data.frame, na.rm  = T) %>%
-  lapply(function(x){
-    x$ID <- row.names(x); x
-  })
-
 
 #Get climate 
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/Rasters/wc2/")
@@ -86,10 +72,6 @@ prec <- lapply(list.files()[list_files], raster) %>%
            options = "INTERLEAVE=BAND", 
            progress = "text", overwrite = T)
 
-prec_df <- as.data.frame(prec, na.rm = T, xy = T)
-prec_df$ID <- row.names(prec_df)
-dataframes_extract[[4]] <- prec_df
-
 #Soil quality 
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/Rasters/soil_quality/")
 list_files <- list.files()
@@ -103,16 +85,36 @@ sq <- lapply(list_files, raster) %>%
            options = "INTERLEAVE=BAND", 
            progress = "text", overwrite = T)
 
-sq_df <- as.data.frame(sq, na.rm = T, xy = T)
-sq_df$ID <- row.names(sq_df)
-dataframes_extract[[5]] <- sq_df
+#Roads
+setwd("~/Dropbox/BANREP/Deforestacion/Datos/")
+roads <- readOGR(dsn = "Roads", layer="VIAS") %>%
+  # spTransform(CRS=CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")) to mercator
+  spTransform(CRS=CRS("+init=epsg:3857")) 
+
+buffer_roads <- gBuffer(roads, 5000, byid = TRUE, id = row.names(roads)) %>%
+  spTransform(CRS=CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+cells_roads <- cellFromPolygon(res[[1]], buffer_roads)
+
+cells_roads <- unlist(cells_roads)
+write.csv(cells_roads, "roads.csv")
+
+
+#Extract data to data.frame
+dataframes_extract <- list(elevation, slope, roughness, tri, clump_lights, prec, sq) %>%
+  lapply(as.data.frame, na.rm  = T) %>%
+  lapply(function(x){
+    x$ID <- row.names(x); x
+  })
 
 #Merge
-merge_rasters_dataframes <- Reduce(function(...) merge(..., by="ID"), dataframes_extract) 
+merge_rasters_dataframes <- Reduce(function(...) merge(..., by="ID", all = T), dataframes_extract) %>%
+  mutate(roads = ifelse(ID %in% unlist(cells_roads), 1, 0)) %>%
+  mutate(clumps_1 = ifelse(is.na(clumps), 0, 1)) %>%
+  mutate(prec = select(., starts_with("prec")) %>% rowMeans(na.rm = TRUE))
+
 #Export .csv with clumps and ID
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/")
 write.csv(merge_rasters_dataframes, "geographic_covariates.csv")
-
 
 
 

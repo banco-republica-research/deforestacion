@@ -4,6 +4,7 @@ library(forcats)
 library(tidyr)
 library(rgdal)
 library(forcats)
+library(xtable)
 library(ggplot2)
 
 # Maps and Facts
@@ -142,6 +143,39 @@ g <- g + theme_bw()
 ggsave(str_c("total_deforestation.pdf"), width=30, height=20, units="cm")
 
 
+# Table deforestation by park type
+setwd("~/Dropbox/BANREP/Deforestacion/Datos/HansenProcessed/")
+res <- brick("loss_year_brick_1km.tif")
 
+#Get defo by polygon
+defo_type <- raster::extract(res, natural_parks[[1]], fun = sum, na.rm = T, df = T) %>%
+  defo_type_tot <- defo_type %>%
+  mutate(., loss_sum = rowSums(defo_type[, c(4:length(names(defo_type)) - 1 )])) %>%
+  dplyr::select(., c(ID, loss_sum)) %>% mutate(.,loss_sum = (loss_sum * 100) / 12)
+
+cells_natural <- cellFromPolygon(res, natural_parks[[1]]) %>%
+  sapply(length)
+
+#Get area
+parks <- natural_parks[[2]]@data %>%
+  mutate(area = gArea(natural_parks[[2]], byid = T) / 1e6) %>%
+  mutate(ID = c(1:603)) %>%
+  merge(defo_type_tot, by = "ID") %>%
+  mutate(area_pixel = cells_natural) %>%
+  filter(., STATUS_YR < 2012) %>%
+  mutate(., regional = ifelse(DESIG %in% regional, 1, 0)) %>%
+  mutate(regional = as.factor(regional)) %>% mutate(.,type = fct_recode(regional, Regional = "1", Nacional = "0")) %>%
+  group_by(DESIG, type) %>%
+  summarize(defo_total = sum(loss_sum),
+            area_total = sum(area),
+            area_total_pixel = sum(area_pixel)) %>%
+  mutate(defo_total_area = defo_total / area_total) %>%
+  mutate(defo_total_area_pixel = defo_total / area_total_pixel) %>%
+  .[c(2, 1, 3, 6, 7, 5, 4)] %>%
+  ddply(., c("type")) 
+
+#Create LaTeX table
+xtable(parks[, c(1, 2, 3, 5)], auto = T)
+ 
 
 
