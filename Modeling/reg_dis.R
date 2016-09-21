@@ -511,10 +511,9 @@ setwd("~/Dropbox/BANREP/Backup Data/")
 saveRDS(rd_robust_clump1_2, "rd_robust_clump1_2.rds")
 saveRDS(rd_robust_clump0_2, "rd_robust_clump0_2.rds")
 
-df_optimal_het1 <- rd_to_df(rd_robust_clump1_2, list_df)[c("Tratamiento", "StdErr", "p", "N", "bw"), ]
-df_optimal_het0 <- rd_to_df(rd_robust_clump0_2, list_df)[c("Tratamiento", "StdErr", "p",  "N", "bw"), ]
+df_optimal_het1 <- rd_to_df(rd_robust_clump1_2, list_df)[c("Tratamiento", "StdErr", "p", "N", "bw", "Media control"), ]
+df_optimal_het0 <- rd_to_df(rd_robust_clump0_2, list_df)[c("Tratamiento", "StdErr", "p",  "N", "bw", "Media control"), ]
 
-df_optimal_final <- rbind(df_optimal_het1, df_optimal_het0) 
+df_optimal_final <- rbind(df_optimal_het0, df_optimal_het1) 
 stargazer(df_optimal_final, summary = F, decimal.mark = ",", digits = 3, digit.separator = ".")
-
 

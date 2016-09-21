@@ -166,16 +166,64 @@ parks <- natural_parks[[2]]@data %>%
   mutate(., regional = ifelse(DESIG %in% regional, 1, 0)) %>%
   mutate(regional = as.factor(regional)) %>% mutate(.,type = fct_recode(regional, Regional = "1", Nacional = "0")) %>%
   group_by(DESIG, type) %>%
-  summarize(defo_total = sum(loss_sum),
+  summarize(defo_total = sum(loss_sum) / 100, 
             area_total = sum(area),
             area_total_pixel = sum(area_pixel)) %>%
   mutate(defo_total_area = defo_total / area_total) %>%
-  mutate(defo_total_area_pixel = defo_total / area_total_pixel) %>%
+  mutate(defo_total_area_pixel = (defo_total / area_total_pixel) * 100) %>%
   .[c(2, 1, 3, 6, 7, 5, 4)] %>%
   ddply(., c("type")) 
 
 #Create LaTeX table
 xtable(parks[, c(1, 2, 3, 5)], auto = T)
- 
+
+#Same for territories
+
+territories_area <- 
+  list(black_territories, indigenous_territories) %>%
+  lapply(spTransform, CRS=CRS("+init=epsg:3857")) %>%
+  lapply(., function(x){
+    mutate(x@data, STATUS_YR = str_replace_all(str_extract(x@data$"RESOLUCION", "[-][1-2][0, 9][0-9][0-9]"), "-", "")
+           , area = gArea(x, byid = T) / 1e6)
+  })
+
+
+territories <- list(black_territories, indigenous_territories) %>%
+  lapply(spTransform, CRS = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0 "))
+
+defo_terr <- lapply(territories, function(x){
+  raster::extract(res, x, fun = sum, na.rm = T, df = T)
+  })
+
+defo_terr_tot <- defo_terr %>%
+  lapply(function(x){
+    mutate(x, loss_sum = rowSums(x[, c(4, length(names(x)) - 1 )])) %>%
+      select(c(ID, loss_sum)) %>%
+      mutate(loss_sum = (loss_sum * 100) / 12)
+  })
+  
+
+cells_territories <- lapply(territories, function(x){
+  cellFromPolygon(res, x) %>%
+  sapply(length)
+})
+
+
+territories_df <- mapply(function(x, y , z){
+    x %>%
+    mutate(ID = c(1:dim(x)[1])) %>%
+    merge(y, by = "ID") %>%
+    mutate(area_pixel = z) %>%
+    filter(., STATUS_YR < 2012) %>%
+    group_by() %>%
+    summarize(defo_total = sum(loss_sum) / 100, 
+              area_total = sum(area),
+              area_total_pixel = sum(area_pixel)) %>%
+     mutate(defo_total_area = defo_total / area_total) %>%
+     mutate(defo_total_area_pixel = (defo_total / area_total_pixel) * 100)
+    # .[c(2, 1, 3, 6, 7, 5, 4)] %>%
+    # ddply(., c("type")) 
+}, x = territories_area, y = defo_terr_tot, z = cells_territories, SIMPLIFY = T)
+
 
 
