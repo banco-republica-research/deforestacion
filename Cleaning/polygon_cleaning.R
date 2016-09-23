@@ -22,7 +22,7 @@ library(broom)
 library(stringr)
 library(pbapply)
 
-setwd("/Volumes/LaCie/Deforestacion/Hansen")
+setwd("~/Dropbox/BANREP/Deforestacion/Datos/HansenProcessed/")
 res <- brick("loss_year_brick_1km.tif")
 
 #Open natural parks shapefile (2 SP object, 1. Projected in meters and 2. Mercator)
@@ -52,7 +52,9 @@ natural_parks <- list(natural_parks, natural_parks_proj) %>%
     }, x = . , y = colombia_municipios)
 
 #For tracktability
-natural_parks[[2]]@data$ID <- row.names(natural_parks[[2]]@data)
+natural_parks[[2]]@data$ID <- c(1:dim(natural_parks[[2]])[1])
+natural_parks[[1]]@data$ID <- c(1:dim(natural_parks[[1]])[1])
+
 
 #Buffers to asses "treatment zones" of 50 km 
 buffers_natural_parks_proj <- gBuffer(natural_parks[[2]], byid = T, width = 50000)
@@ -60,18 +62,16 @@ buffers_natural_parks <- spTransform(buffers_natural_parks_proj, CRS("+proj=long
 
 
 #Create a list of individual polygons per natural park
-natural_parks[[1]]@data$ID <- as.factor(row.names(natural_parks[[1]]@data))
 list_polygons <- list()
-total <- length(natural_parks[[1]]@data$ID)
+total <- length(natural_parks[[2]]@data$ID)
 pb <- txtProgressBar(min = 0, max = total, style = 3)
-for(i in natural_parks[[1]]@data$ID){
-  list_polygons[[i]] <- natural_parks[[1]][natural_parks[[1]]@data$ID == i, ]
+for(i in natural_parks[[2]]@data$ID){
+  list_polygons[[i]] <- natural_parks[[2]][natural_parks[[2]]@data$ID == i, ]
   setTxtProgressBar(pb, i)
 }
 close(pb)
 
 #Now the same but for the buffers
-buffers_natural_parks@data$ID <- as.factor(row.names(buffers_natural_parks@data))
 list_polygons_buffers <- list()
 total <- length(buffers_natural_parks@data$ID)
 pb <- txtProgressBar(min = 0, max = total, style = 3)
@@ -147,7 +147,7 @@ territories_dissolve <- lapply(territories_hole_free, function(x){
   unionSpatialPolygons(x, c(1:length(x@polygons))) 
   })
 
-territories_union <- lapply(territories_hole_free, gUnaryUnion)
+territories_union <- lapply(territories_dissolve, gUnaryUnion)
 
 
 #Clean SpatialPoints (from polygons of Natural parks) -remove other treatments and get effective boundaries-
@@ -160,7 +160,7 @@ clean_treatments <- function(x, polygon, points_sp, points_border, shape){
       dif <- tidy(dif)[, 1:2] #Coordinates difference
       polygon2_coords <- tidy(x)[,1:2] #Coordinates polygon
       # Duplicated_coords is the non-intersecting points of the polygon2
-      duplicated_coords <- anti_join(dif, polygon2_coords) 
+      duplicated_coords <- merge(dif, polygon2_coords) 
       if(dim(duplicated_coords)[1] > 0){
         res <- SpatialPoints(duplicated_coords, proj4string = CRS("+init=epsg:3857"))
       } else {
@@ -172,35 +172,35 @@ clean_treatments <- function(x, polygon, points_sp, points_border, shape){
     }
     #Remove close cofounding treatments
     knn <- get.knnx(coordinates(points_sp), coordinates(res), k = 1, algorithm = "kd_tree") %>%
-      data.frame(.) 
+    data.frame(.)
     sp <- SpatialPointsDataFrame(res, knn, proj4string = CRS("+init=epsg:3857")) %>%
-      .[!.@data$nn.dist < 2000, ]
+    .[!.@data$nn.dist < 1000, ]
     knn_border <- get.knnx(coordinates(points_border), coordinates(sp), k = 1, algorithm = "kd_tree") %>%
-      data.frame(.)
+    data.frame(.)
     sp_border <- SpatialPointsDataFrame(sp, knn_border, proj4string = CRS("+init=epsg:3857")) %>%
-      .[!.@data$nn.dist < 2500, ] 
+    .[!.@data$nn.dist < 1000, ]
     dif <- gDifference(shape, x) %>% as("SpatialLines") %>% as("SpatialPoints")
     knn_final <- get.knnx(coordinates(dif), coordinates(sp_border), k = 1, algorithm = "kd_tree") %>%
-      data.frame()
+    data.frame()
     sp_final <- SpatialPointsDataFrame(sp_border, knn_final, proj4string = CRS("+init=epsg:3857")) %>%
-      .[!.@data$nn.dist < 1000, ]
+    .[!.@data$nn.dist < 500, ]
     
   } else {
-    #Remove close cofounding treatments
+    # Remove close cofounding treatments
     points <- x %>% as("SpatialLines") %>% as("SpatialPoints")
     knn <- get.knnx(coordinates(points_sp), coordinates(points), k = 1, algorithm = "kd_tree") %>%
-      data.frame(.) 
+      data.frame(.)
     sp <- SpatialPointsDataFrame(points, knn, proj4string = CRS("+init=epsg:3857")) %>%
-      .[!.@data$nn.dist < 2000, ] 
+      .[!.@data$nn.dist < 1000, ]
     knn_border <- get.knnx(coordinates(points_border), coordinates(sp), k = 1, algorithm = "kd_tree") %>%
       data.frame(.)
     sp_border <- SpatialPointsDataFrame(sp, knn_border, proj4string = CRS("+init=epsg:3857")) %>%
-      .[!.@data$nn.dist < 2500, ] 
+      .[!.@data$nn.dist < 1000, ]
     dif <- gDifference(shape, x) %>% as("SpatialLines") %>% as("SpatialPoints")
     knn_final <- get.knnx(coordinates(dif), coordinates(sp_border), k = 1, algorithm = "kd_tree") %>%
       data.frame()
     sp_final <- SpatialPointsDataFrame(sp_border, knn_final, proj4string = CRS("+init=epsg:3857")) %>%
-      .[!.@data$nn.dist < 1000, ]
+       .[!.@data$nn.dist < 500, ]
   }
   
 }
@@ -218,6 +218,7 @@ list_polygons_clean_indigenous <- lapply(list_polygons_proj, clean_treatments, p
 
 ###############################################################################################################
 
+
 #Clean natural parks from both (create the union between borth territories)
 territories_merge <- territories_union %>%
   lapply(function(x){
@@ -225,12 +226,23 @@ territories_merge <- territories_union %>%
       gSimplify(., tol = 0.001)
   })
 
+natural_parks_corrected <- natural_parks %>%
+  lapply(function(x){
+    gBuffer(x, byid = T, width = 0) %>%
+      gSimplify(., tol = 0.001)
+  })
+
+
 territories_merge <- raster::union(territories_merge[[1]], territories_merge[[2]])
 territories_merge_p <- rbind(black_points, indigenous_points)
 
 
-list_polygons_clean_all <- lapply(list_polygons_proj, clean_treatments, polygon = territories_merge,
-                                         points_sp = territories_merge_p, points_border = colombia_municipios_p)
+list_polygons_clean_all <- lapply(list_polygons, clean_treatments, polygon = territories_merge,
+                                         points_sp = territories_merge_p, points_border = colombia_municipios_p,
+                                  shape = natural_parks_corrected[[2]])
+setwd("~/Dropbox/BANREP/Backup Data/")
+saveRDS(list_polygons_clean_all, "list_polygons_clean_all.rds")
+
 
 
 #Reproject list to raster projection (WGS84)
@@ -244,10 +256,14 @@ list_polygons_clean_all_proj <- lapply(list_polygons_clean_all, function(x){
 })
   
 # Does it work?
-plot(list_polygons_proj[[61]])
-plot(territories_proj[[1]], add = T, border = "red")
-plot(territories_proj[[2]], add = T, border = "orange")
-plot(list_polygons_clean_all[[61]], col="red", pch=19, add=T)
+chiribiquete_clean <- clean_treatments(list_polygons[[8]], polygon = territories_merge,
+                                       points_sp = territories_merge_p, 
+                                       points_border = colombia_municipios_p,
+                                       shape = natural_parks_corrected[[2]])
+plot(list_polygons[[8]])
+plot(chiribiquete_clean, add = T, col = red)
+
+
 
 
 # Get natural park SpatialPolygon atributes by cell number
@@ -409,8 +425,9 @@ p <- clean_treatments(list_polygons[[2]][[215]], polygon = naturaLparks_black_me
                                              shape = territories_proj_corrected[[2]])
 
 #Does it work? 
-plot(list_polygons[[1]][[171]])
-plot(list_polygons_clean_black_all[[141]], add = T, col = "blue", pch = 19)
+plot(list_polygons[[2]][[137]])
+plot(naturaLparks_black_merge, add = T, border = "red")
+plot(list_polygons_clean_indigenous_all[[1]], add = T, col = "blue", pch = 19)
 
 
 

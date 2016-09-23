@@ -226,4 +226,27 @@ territories_df <- mapply(function(x, y , z){
 }, x = territories_area, y = defo_terr_tot, z = cells_territories, SIMPLIFY = T)
 
 
+#Cleaning example (Chiribiquete) - for this you have to run first polygon_cleaning.R script
+chiribiquete <- list_polygons[[8]] %>%
+  spTransform(CRS = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")) %>%
+  tidy()
+
+territories_proj_longlat <- territories %>%
+  lapply(., function(x){
+    spTransform(x, CRS = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+})
+
+chiribiquete_clean <- list_polygons_clean_all[[8]] %>%
+  spTransform(CRS = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")) %>%
+  tidy() %>% mutate(type = "Frontera efectiva")
+
+g <- ggplot() 
+g <- g + geom_polygon(aes(long, lat), fill = "grey65", data = chiribiquete)
+g <- g + geom_point(aes(long, lat, size = type), data = chiribiquete_clean, size = 1, colour = "red")
+g <- g + theme(axis.text = element_blank(), axis.title=element_blank()) 
+g
+
+
+
+
 
