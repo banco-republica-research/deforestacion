@@ -28,6 +28,7 @@ list_raster <- list.files() %>%
 rasters_extent <- extent(list_raster[[1]]) #We need to put all rasters into the same extent (all have the same resolution)
 rasters_lights <- processing_rasters(list_raster, rasters_extent, colombia_municipios)
 
+
 #Deforestation data (only lossyear)
 setwd("/Volumes/LaCie/Deforestacion/Hansen")
 files <- list.files() %>%

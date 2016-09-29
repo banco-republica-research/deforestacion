@@ -19,8 +19,8 @@ library(stringr)
 #Import datasets (covariates)
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes")
 defo <- read.csv("dataframe_deforestacion.csv") %>% dplyr::select(-X)
-cov <- read.csv("geographic_covariates.csv") %>% dplyr::select(-X)
-clump <- read.csv("clump_id_dataframe_2000.csv") %>% dplyr::select(ID, clumps)
+cov <- read.csv("geographic_covariates.csv")
+treecover <- read.csv("treecover_2000.csv") %>% dplyr::select(ID, treecover_agg)
 
 #Conflict covariates (municipal level)
 # muni <- read.csv("colombia_municipios_code_r.csv") %>% dplyr::select(ID, layer)
@@ -50,8 +50,7 @@ defo_dist <- lapply(rds_2000, function(x){
     mutate(., dist_disc = ifelse(treatment == 1, 1, -1) * dist) %>%
     mutate(., dist_disc = dist_disc / 1000) %>%
     merge(., cov, by = "ID", all.x = T) %>%
-    merge(., clump, by = "ID", all.x = T) %>%
-    mutate(clumps = ifelse(is.na(clumps), 0, 1))
+    merge(., treecover, by = "ID")
 })
 
 defo_dist_terr <- lapply(territories_2000, function(x){
@@ -60,8 +59,7 @@ defo_dist_terr <- lapply(territories_2000, function(x){
     mutate(., dist_disc = ifelse(treatment == 1, 1, -1) * dist) %>%
     mutate(., dist_disc = dist_disc / 1000) %>%
     merge(., cov, by = "ID", all.x = T) %>%
-    merge(., clump, by = "ID", all.x = T) %>%
-    mutate(clumps = ifelse(is.na(clumps), 0, 1))
+    merge(., treecover, by = "ID")
 })
 
 #Regression discontinuity for fixed bandwidths (5 and 10 km)
@@ -70,8 +68,8 @@ rd_robust_fixed_five_2 <-  lapply(list_df, function(x){
   rdrobust(
     y = x$loss_sum,
     x = x$dist_disc,
-    q = 2, p = 4,
     vce = "nn",
+    h = 5,
     all = T
   )
 })
@@ -82,8 +80,8 @@ rd_robust_fixed_ten_2 <-  lapply(list_df, function(x){
     x = x$dist_disc,
     vce = "nn",
     nnmatch = 3,
-    all = T,
-    h = 10
+    h = 10,
+    all = T
   )
 })
 
@@ -119,22 +117,24 @@ saveRDS(rd_robust_terr_2, "rd_robust_terr_2.rds")
 #RD with controls for fixed bandwiths (5km and 10km)
 
 list_df <- c(defo_dist[2:3], defo_dist_terr)
-rd_robust_fixed_five_ctrl_2 <-  lapply(list_df, function(x){
+rd_robust_fixed_five_ctrl_2 <-  lapply(list_df, function(park){
   rdrobust(
-    y = x$loss_sum,
-    x = x$dist_disc,
-    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$clumps),
-    vce = "hc1",
+    y = park$loss_sum,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, park$clumps_1),
+    vce = "nn",
     all = T,
     h = 5
   )
 })
 
-rd_robust_fixed_ten_ctrl_2 <-  lapply(list_df, function(x){
+rd_robust_fixed_ten_ctrl_2 <-  lapply(list_df, function(park){
   rdrobust(
-    y = x$loss_sum,
-    x = x$dist_disc,
-    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$clumps),
+    y = park$loss_sum,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, park$clumps_1),
     vce = "nn",
     all = T,
     h = 10
@@ -148,19 +148,22 @@ rd_robust_parks_2_ctrl <- lapply(defo_dist, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$clumps),
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, park$clumps_1),
     vce = "nn",
     nnmatch = 3,
     all = T
   )
 })
 
+length(defo_dist[[3]])
 
-rd_robust_terr_2_ctrl <- lapply(defo_dist_terr, function(terr){
+rd_robust_terr_2_ctrl <- lapply(defo_dist_terr, function(park){
   rdrobust(
-    y = terr$loss_sum,
-    x = terr$dist_disc,
-    covs = cbind(terr$altura_tile_30arc, terr$slope, terr$roughness, terr$clumps),
+    y = park$loss_sum,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, park$clumps_1),
     vce = "nn",
     all = T
   )
@@ -169,7 +172,6 @@ rd_robust_terr_2_ctrl <- lapply(defo_dist_terr, function(terr){
 setwd("~/Dropbox/BANREP/Backup Data/")
 saveRDS(rd_robust_parks_2_ctrl, "rd_robust_parks_2_ctrl.rds")
 saveRDS(rd_robust_terr_2_ctrl, "rd_robust_terr_2_ctrl.rds")
-
 
 
 ############################################# STRATEGY 1: ALL BORDERS ###################################################
@@ -204,6 +206,7 @@ defo_dist <- lapply(rds_2000, function(x){
     mutate(., dist_disc = dist_disc / 1000) %>%
     merge(., cov, by = "ID", all.x = T) %>%
     merge(., clump, by = "ID", all.x = T) %>%
+    merge(., treecover, by = "ID") %>%
     mutate(clumps = ifelse(is.na(clumps), 0, 1))
 })
 
@@ -214,6 +217,7 @@ defo_dist_terr <- lapply(territories_2000, function(x){
     mutate(., dist_disc = dist_disc / 1000) %>%
     merge(., cov, by = "ID", all.x = T) %>%
     merge(., clump, by = "ID", all.x = T) %>%
+    merge(., treecover, by = "ID") %>%
     mutate(clumps = ifelse(is.na(clumps), 0, 1))
 })
 
@@ -331,7 +335,7 @@ saveRDS(rd_robust_terr_1_ctrl, "rd_robust_terr_1_ctrl.rds")
 rd_to_df <- function(list, dataframe){
   rd <- lapply(list, "[", "tabl3.str") %>%
     lapply(as.data.frame) %>%
-    lapply( "[", 3 , ) %>%
+    lapply( "[", 1 , ) %>%
     ldply() %>% mutate(N_l = unlist(lapply(list, "[", "N_l"))) %>%
     mutate(N_r = unlist(lapply(list, "[", "N_r"))) %>%
     mutate(N = N_l + N_r) %>%
@@ -410,26 +414,28 @@ stargazer(df_optimal_final, summary = F, decimal.mark = ",", digits = 3, digit.s
 #Heterogeneus effects by clump and fixed bw's (5 km)
 
 list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
-  lapply(., function(x) base::subset(x, clumps == 1))
-rd_robust_fixed_five_clump1_2 <-  lapply(list_df, function(x){
+  lapply(., function(x) base::subset(x, roads == 1))
+rd_robust_fixed_five_clump1_2 <-  lapply(list_df, function(park){
   rdrobust(
-    y = x$loss_sum,
-    x = x$dist_disc,
-    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness),
-    vce = "hc1",
+    y = park$loss_sum,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg),
+    vce = "nn",
     all = T,
     h = 5
   )
 })
 
 list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
-  lapply(function(x) filter(x, clumps == 0))
-rd_robust_fixed_five_clump0_2 <-  lapply(list_df, function(x){
+  lapply(function(x) filter(x, roads == 0))
+rd_robust_fixed_five_clump0_2 <-  lapply(list_df, function(park){
   rdrobust(
-    y = x$loss_sum,
-    x = x$dist_disc,
-    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness),
-    vce = "hc1",
+    y = park$loss_sum,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg),
+    vce = "nn",
     all = T,
     h = 5
   )
@@ -439,12 +445,13 @@ rd_robust_fixed_five_clump0_2 <-  lapply(list_df, function(x){
 #Heterogeneus effects by clump and fixed bw's (10 km)
 
 list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
-  lapply(., function(x) base::subset(x, clumps == 1))
-rd_robust_fixed_ten_clump1_2 <-  lapply(list_df, function(x){
+  lapply(., function(x) base::subset(x, roads == 1))
+rd_robust_fixed_ten_clump1_2 <-  lapply(list_df, function(park){
   rdrobust(
-    y = x$loss_sum,
-    x = x$dist_disc,
-    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness),
+    y = park$loss_sum,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg),
     vce = "nn",
     all = T,
     h = 10
@@ -452,12 +459,13 @@ rd_robust_fixed_ten_clump1_2 <-  lapply(list_df, function(x){
 })
 
 list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
-  lapply(function(x) filter(x, clumps == 0))
-rd_robust_fixed_ten_clump0_2 <-  lapply(list_df, function(x){
+  lapply(function(x) filter(x, roads == 0))
+rd_robust_fixed_ten_clump0_2 <-  lapply(list_df, function(park){
   rdrobust(
-    y = x$loss_sum,
-    x = x$dist_disc,
-    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness),
+    y = park$loss_sum,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg),
     vce = "nn",
     all = T,
     h = 10
@@ -468,12 +476,13 @@ rd_robust_fixed_ten_clump0_2 <-  lapply(list_df, function(x){
 #Heterogeneus effects by clump and optimal bw's
 
 list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
-  lapply(., function(x) base::subset(x, clumps == 1))
+  lapply(., function(x) base::subset(x, clumps_1 == 1))
 rd_robust_clump1_2 <- lapply(list_df, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness),
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg),
     vce = "nn",
     nnmatch = 3,
     all = T
@@ -483,12 +492,13 @@ rd_robust_clump1_2 <- lapply(list_df, function(park){
 
 
 list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
-  lapply(., function(x) base::subset(x, clumps == 0))
+  lapply(., function(x) base::subset(x, clumps_1 == 0))
 rd_robust_clump0_2 <- lapply(list_df, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness),
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg),
     vce = "nn",
     nnmatch = 3,
     all = T
@@ -501,10 +511,9 @@ setwd("~/Dropbox/BANREP/Backup Data/")
 saveRDS(rd_robust_clump1_2, "rd_robust_clump1_2.rds")
 saveRDS(rd_robust_clump0_2, "rd_robust_clump0_2.rds")
 
-df_optimal_het1 <- rd_to_df(rd_robust_clump1_2, list_df)[c("Tratamiento", "StdErr", "p", "N", "bw"), ]
-df_optimal_het0 <- rd_to_df(rd_robust_clump0_2, list_df)[c("Tratamiento", "StdErr", "p",  "N", "bw"), ]
+df_optimal_het1 <- rd_to_df(rd_robust_clump1_2, list_df)[c("Tratamiento", "StdErr", "p", "N", "bw", "Media control"), ]
+df_optimal_het0 <- rd_to_df(rd_robust_clump0_2, list_df)[c("Tratamiento", "StdErr", "p",  "N", "bw", "Media control"), ]
 
-df_optimal_final <- rbind(df_optimal_het1, df_optimal_het0) 
+df_optimal_final <- rbind(df_optimal_het0, df_optimal_het1) 
 stargazer(df_optimal_final, summary = F, decimal.mark = ",", digits = 3, digit.separator = ".")
-
 
