@@ -70,6 +70,7 @@ rd_robust_fixed_five_2 <-  lapply(list_df, function(x){
     x = x$dist_disc,
     vce = "nn",
     h = 5,
+    nnmatch = 8,
     all = T
   )
 })
@@ -79,7 +80,7 @@ rd_robust_fixed_ten_2 <-  lapply(list_df, function(x){
     y = x$loss_sum,
     x = x$dist_disc,
     vce = "nn",
-    nnmatch = 3,
+    nnmatch = 8,
     h = 10,
     all = T
   )
@@ -93,7 +94,7 @@ rd_robust_parks_2 <- lapply(defo_dist, function(park){
     y = park$loss_sum,
     x = park$dist_disc,
     vce = "nn",
-    nnmatch = 3,
+    nnmatch = 8,
     all = T
   )
 })
@@ -104,7 +105,7 @@ rd_robust_terr_2 <- lapply(defo_dist_terr, function(terr){
     y = terr$loss_sum,
     x = terr$dist_disc,
     vce = "nn",
-    nnmatch = 3,
+    nnmatch = 8,
     all = T
   )
 })
@@ -156,7 +157,6 @@ rd_robust_parks_2_ctrl <- lapply(defo_dist, function(park){
   )
 })
 
-length(defo_dist[[3]])
 
 rd_robust_terr_2_ctrl <- lapply(defo_dist_terr, function(park){
   rdrobust(
@@ -172,6 +172,10 @@ rd_robust_terr_2_ctrl <- lapply(defo_dist_terr, function(park){
 setwd("~/Dropbox/BANREP/Backup Data/")
 saveRDS(rd_robust_parks_2_ctrl, "rd_robust_parks_2_ctrl.rds")
 saveRDS(rd_robust_terr_2_ctrl, "rd_robust_terr_2_ctrl.rds")
+
+rd_robust_parks_2_ctrl <- readRDS("rd_robust_parks_2_ctrl.rds")
+rd_robust_terr_2_ctrl <- readRDS("rd_robust_terr_2_ctrl.rds")
+
 
 
 ############################################# STRATEGY 1: ALL BORDERS ###################################################
@@ -198,16 +202,13 @@ defo$loss_sum <- rowSums(defo[, c(4:length(names(defo)) - 1 )])
 loss_sum <- dplyr::select(defo, c(ID, loss_sum)) %>% mutate(loss_sum = loss_sum / 12)
 
 #Merge data
-
 defo_dist <- lapply(rds_2000, function(x){
   merge(loss_sum, x, by.x = "ID", by.y = "ID") %>%
     mutate(., loss_sum = loss_sum * 100) %>%
     mutate(., dist_disc = ifelse(treatment == 1, 1, -1) * dist) %>%
     mutate(., dist_disc = dist_disc / 1000) %>%
     merge(., cov, by = "ID", all.x = T) %>%
-    merge(., clump, by = "ID", all.x = T) %>%
-    merge(., treecover, by = "ID") %>%
-    mutate(clumps = ifelse(is.na(clumps), 0, 1))
+    merge(., treecover, by = "ID")
 })
 
 defo_dist_terr <- lapply(territories_2000, function(x){
@@ -216,9 +217,7 @@ defo_dist_terr <- lapply(territories_2000, function(x){
     mutate(., dist_disc = ifelse(treatment == 1, 1, -1) * dist) %>%
     mutate(., dist_disc = dist_disc / 1000) %>%
     merge(., cov, by = "ID", all.x = T) %>%
-    merge(., clump, by = "ID", all.x = T) %>%
-    merge(., treecover, by = "ID") %>%
-    mutate(clumps = ifelse(is.na(clumps), 0, 1))
+    merge(., treecover, by = "ID")
 })
 
 #Regression discontinuity for fixed bandwidths (5 and 10 km)
@@ -278,7 +277,8 @@ rd_robust_fixed_five_ctrl_1 <-  lapply(list_df, function(x){
   rdrobust(
     y = x$loss_sum,
     x = x$dist_disc,
-    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$clumps),
+    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$prec, 
+                 x$sq_1km.1, x$treecover_agg, x$clumps_1),
     vce = "nn",
     all = T,
     h = 5
@@ -289,7 +289,8 @@ rd_robust_fixed_ten_ctrl_1 <-  lapply(list_df, function(x){
   rdrobust(
     y = x$loss_sum,
     x = x$dist_disc,
-    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$clumps),
+    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$prec, 
+                 x$sq_1km.1, x$treecover_agg, x$clumps_1),
     vce = "nn",
     all = T,
     h = 10
@@ -304,7 +305,8 @@ rd_robust_parks_1_ctrl <- lapply(defo_dist, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$clumps),
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, park$clumps_1),
     vce = "nn",
     nnmatch = 3,
     all = T
@@ -316,7 +318,8 @@ rd_robust_terr_1_ctrl <- lapply(defo_dist_terr, function(terr){
   rdrobust(
     y = terr$loss_sum,
     x = terr$dist_disc,
-    covs = cbind(terr$altura_tile_30arc, terr$slope, terr$roughness, terr$clumps),
+    covs = cbind(terr$altura_tile_30arc, terr$slope, terr$roughness, terr$prec, 
+                 terr$sq_1km.1, terr$treecover_agg, terr$clumps_1),
     vce = "nn",
     nnmatch = 3,
     all = T
@@ -329,15 +332,13 @@ saveRDS(rd_robust_terr_1_ctrl, "rd_robust_terr_1_ctrl.rds")
 
 
 #################################################### LATEX TABLES ######################################################
-
-
 ############################################## RD OBJECT TO DATAFRAME FUNCTION ########################################
 rd_to_df <- function(list, dataframe){
   rd <- lapply(list, "[", "tabl3.str") %>%
     lapply(as.data.frame) %>%
-    lapply( "[", 1 , ) %>%
-    ldply() %>% mutate(N_l = unlist(lapply(list, "[", "N_l"))) %>%
-    mutate(N_r = unlist(lapply(list, "[", "N_r"))) %>%
+    lapply( "[", 3 , ) %>%
+    ldply() %>% mutate(N_l = unlist(lapply(list, "[", "N_h_l"))) %>%
+    mutate(N_r = unlist(lapply(list, "[", "N_h_r"))) %>%
     mutate(N = N_l + N_r) %>%
     mutate(bws = unlist(lapply(list, function(x) x$bws[1, 1])))
   
