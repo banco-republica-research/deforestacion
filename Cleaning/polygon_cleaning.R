@@ -109,6 +109,7 @@ indigenous_territories <- readOGR(dsn = "Resguardos", layer="Resguardos Indigena
 colnames(indigenous_territories@data)[8] <- "RESOLUCION"
 territories <- list(black_territories, indigenous_territories) %>%
   lapply(spTransform, CRS=CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+
 territories_proj <- lapply(territories, spTransform, CRS=CRS("+init=epsg:3857")) %>% #Projection in meters
   lapply(., function(x){
     x@data <- mutate(x@data, year = str_replace_all(str_extract(x@data$"RESOLUCION", "[-][1-2][0, 9][0-9][0-9]"), "-", ""))
@@ -119,7 +120,7 @@ territories_proj <- lapply(territories, spTransform, CRS=CRS("+init=epsg:3857"))
     gIntersection(x, colombia_municipios[[2]], byid = T, drop_lower_td = T)
   }) %>%
   lapply(.,function(x){
-    x$ID <- row.names(x)
+    x$ID <- c(1:length(x))
     return(x)
   })
 
@@ -389,7 +390,7 @@ polygon_to_list <- function(shape){
 }
 
 list_polygons_buffers <- lapply(buffers_territories, polygon_to_list)
-list_polygons <- lapply(territories_proj, polygon_to_list)
+list_polygons_territories <- lapply(territories_proj, polygon_to_list)
 
 #Correct list of polygons (for topo problems)
 list_polygons <- list_polygons %>%

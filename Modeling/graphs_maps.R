@@ -6,6 +6,7 @@ library(rgdal)
 library(forcats)
 library(xtable)
 library(ggplot2)
+library(ggsn)
 
 # Maps and Facts
 
@@ -227,26 +228,52 @@ territories_df <- mapply(function(x, y , z){
 
 
 #Cleaning example (Chiribiquete) - for this you have to run first polygon_cleaning.R script
-chiribiquete <- list_polygons[[8]] %>%
-  spTransform(CRS = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")) %>%
-  tidy()
 
-territories_proj_longlat <- territories %>%
+#Preapre polygons
+polygons <- list(list_polygons[[8]], list_polygons_territories[[2]][[650]], list_polygons_territories[[2]][[466]]) %>%
   lapply(., function(x){
-    spTransform(x, CRS = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
-})
+    spTransform(x, CRS = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")) %>%
+  tidy()
+  })
 
 chiribiquete_clean <- list_polygons_clean_all[[8]] %>%
   spTransform(CRS = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")) %>%
   tidy() %>% mutate(type = "Frontera efectiva")
 
+polygons_centroids <-  list(list_polygons[[8]], list_polygons_territories[[2]][[650]], list_polygons_territories[[2]][[466]]) %>%
+  mapply(function(x, names){
+    spTransform(x, CRS = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")) %>%
+      coordinates() %>%
+      as.data.frame() %>%
+      mutate(ID = names) %>%
+      rename(long = V1, lat = V2)
+    }, x = ., names = c("PNN Chiribiquete", "R.I. Mirití-Paraná", "R.I. Vaupés"), SIMPLIFY = F) %>%
+  ldply()
+
+
+#Get GoogleMaps map
+terrain_map <- get_map(location = c(-76, -0.5, -68, 2), zoom = 8, maptype = 'terrain')
+plot(terrain_map)
+#  left/bottom/right/top 
+
+setwd("~/Dropbox/BANREP/Deforestacion/Results/Graphs:Misc/")
 g <- ggplot() 
-g <- g + geom_polygon(aes(long, lat), fill = "grey65", data = chiribiquete)
-g <- g + geom_point(aes(long, lat, size = type), data = chiribiquete_clean, size = 1, colour = "red")
-g <- g + theme(axis.text = element_blank(), axis.title=element_blank()) 
-g
-
-
+# g <- ggmap(terrain_map)
+# g <- g + geom_polygon(aes(long, lat, group = id), fill = NA, colour = "orange", data = tidy(territories[[2]]))
+g <- g + geom_polygon(aes(long, lat), fill = "springgreen4", data = polygons[[1]])
+g <- g + geom_polygon(aes(long, lat), fill = "grey70", data = polygons[[2]])
+g <- g + geom_polygon(aes(long, lat), fill = "grey70", data = polygons[[3]])
+g <- g + geom_point(aes(long, lat, colour = type), data = chiribiquete_clean, size = 1, colour = "darkorange2")
+g <- g + theme(axis.text = element_blank(), axis.title=element_blank(),
+               panel.background = element_rect(), panel.grid.major = element_blank())
+               # ,panel.grid.minor = element_blank())
+g <- g + geom_text(aes(label = ID, x = long, y = lat), data = polygons_centroids)
+g <- g + scalebar(x.min = -74, x.max = -69, y.min = -0.8, y.max = 2.1, 
+                  dist = 50, model = "WGS84", dd2km = T, st.size = 3,
+                  anchor = c(y = -2 , x = -69))
+# g <- g + coord_map(xlim = c(-76, -68), ylim = c(-0.5, 2))
+north2(g, x = 0.9, y = 0.9, scale = 0.1, symbol = 1.2)
+ggsave(str_c("chiribiquete_clean.pdf"), width=30, height=20, units="cm")
 
 
 
