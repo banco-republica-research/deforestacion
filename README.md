@@ -1,5 +1,5 @@
-# Deforestacion
+#¿Does national protect areas work for deter deforestation?
 
-Deforestación en Colombia :evergreen_tree:
+Deforestation in Colombia :evergreen_tree:
 
 
