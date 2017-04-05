@@ -11,14 +11,13 @@ library(rdrobust)
 library(rdd)
 library(stringr)
 library(stargazer)
-library(rddtools)
 library(ggplot2)
 
 #Import datasets
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes")
 defo <- read.csv("dataframe_deforestacion.csv") %>% dplyr::select(-X)
 cov <- read.csv("geographic_covariates.csv") %>% dplyr::select(-X)
-clump <- read.csv("clump_id_dataframe_2000.csv") %>% dplyr::select(ID, clumps)
+clumps <- read.csv("clump_id_dataframe_2000.csv") %>% dplyr::select(ID, clumps)
 
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes/Estrategia 2")
 list_files <- list.files()
@@ -41,9 +40,9 @@ defo_dist <- lapply(rds_2000, function(x){
     mutate(., loss_sum = loss_sum * 100) %>%
     mutate(., dist_disc = ifelse(treatment == 1, 1, -1) * dist) %>%
     mutate(., dist_disc = dist_disc / 1000) %>%
-    merge(., cov, by = "ID", all.x = T) %>%
-    merge(., clump, by = "ID", all.x = T) %>%
-    mutate(clumps = ifelse(is.na(clumps), 0, 1))
+    merge(., cov, by = "ID", all.x = T)
+    # merge(., clumps, by = "ID", all.x = T)
+    # mutate(clumps = ifelse(is.na(clumps), 0, 1))
 })
 
 defo_dist_terr <- lapply(territories_2000, function(x){
@@ -51,9 +50,9 @@ defo_dist_terr <- lapply(territories_2000, function(x){
     mutate(., loss_sum = loss_sum * 100) %>%
     mutate(., dist_disc = ifelse(treatment == 1, 1, -1) * dist) %>%
     mutate(., dist_disc = dist_disc / 1000) %>%
-    merge(., cov, by = "ID", all.x = T) %>%
-    merge(., clump, by = "ID", all.x = T) %>%
-    mutate(clumps = ifelse(is.na(clumps), 0, 1))
+    merge(., cov, by = "ID", all.x = T)
+    # merge(., clumps, by = "ID", all.x = T) %>%
+    # mutate(clumps = ifelse(is.na(clumps), 0, 1))
 })
 
 #Regression discontinuity for fixed bandwidths (5 and 10 km)
@@ -171,16 +170,15 @@ df_ten_final <- cbind(df_ten, df_ten_ctrl) %>%
 stargazer(df_five_final, df_ten_final, summary = F)
 
 
-
 #Regression discontinuity (optimal bandwidth) with controls
 
 rd_robust_parks_2_ctrl <- lapply(defo_dist, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$clumps),
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness),
     vce = "nn",
-    nnmatch = 3,
+    # nnmatch = 3,
     all = T
   )
 })
@@ -190,7 +188,7 @@ rd_robust_terr_2_ctrl <- lapply(defo_dist_terr, function(terr){
   rdrobust(
     y = terr$loss_sum,
     x = terr$dist_disc,
-    covs = cbind(terr$altura_tile_30arc, terr$slope, terr$roughness, terr$clumps),
+    covs = cbind(terr$altura_tile_30arc, terr$slope, terr$roughness),
     vce = "nn",
     nnmatch = 3,
     all = T

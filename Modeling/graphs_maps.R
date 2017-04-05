@@ -7,6 +7,7 @@ library(forcats)
 library(xtable)
 library(ggplot2)
 library(ggsn)
+library(stringr)
 
 # Maps and Facts
 
@@ -16,7 +17,7 @@ library(ggsn)
 
 # Open shapefiles
 setwd("~/Dropbox/BANREP/Deforestacion/Datos/UNEP")
-natural_parks <- readOGR(dsn = "WDPA_June2016_COL-shapefile", layer = "WDPA_June2016_COL-shapefile-polygons")
+natural_parks <- readOGR(dsn = "WDPA_June2016_COL-shapefile", layer = "WDPA_June2016_COL-shapefile-polygons" , stringsAsFactors = F)
 natural_parks_proj <- spTransform(natural_parks, CRS=CRS("+init=epsg:3857")) #Projection in meters
 
 #Remove NP that are out of continental land (Malpelo and Providencia)
@@ -30,8 +31,8 @@ natural_parks <- list(natural_parks, natural_parks_proj) %>%
   })
 
 setwd("/Users/Ivan/Dropbox/BANREP/Deforestacion/Datos")
-black_territories <- readOGR(dsn = "Comunidades", layer="Tierras de Comunidades Negras (2015)")
-indigenous_territories <- readOGR(dsn = "Resguardos", layer="Resguardos Indigenas (2015)") 
+black_territories <- readOGR(dsn = "Comunidades", layer="Tierras de Comunidades Negras (2015)", stringsAsFactors = F)
+indigenous_territories <- readOGR(dsn = "Resguardos", layer="Resguardos Indigenas (2015)" , stringsAsFactors = F) 
 colnames(indigenous_territories@data)[8] <- "RESOLUCION"
 
 #Aggregate area data per year for territories 
@@ -74,6 +75,12 @@ all <- rbind(as.data.frame(parks), territories) %>%
   mutate(cumsum = ave(total_area, type, FUN = cumsum)) %>%
   mutate(cumsum = round(cumsum, 4)) %>%
   arrange(STATUS_YR)
+# 
+# black <- territories[, 1:2] %>%
+#   mutate(total_area_black = ifelse(is.na(total_area_black), 0, total_area_black)) %>%
+#   mutate(cumsum = ave(total_area_black, FUN = cumsum)) %>%
+#   mutate(cumsum = round(cumsum, 4)) %>% mutate(STATUS_YR = as.numeric(STATUS_YR)) %>%
+#   arrange(STATUS_YR) %>% filter(STATUS_YR >= 1993)
 
 
 setwd("~/Dropbox/BANREP/Deforestacion/Results/Graphs:Misc/")
@@ -88,6 +95,23 @@ g <- g + theme(legend.position = c(.15, .85))
 g <- g + theme(axis.text = element_text(size = 12), axis.title = element_text(size = 14))
 g
 ggsave(str_c("total_areas_geomarea.pdf"), width=30, height=20, units="cm")
+
+
+setwd("~/Dropbox/BANREP/Pacifico/Entregas/")
+g <- ggplot(black, aes(y = cumsum / 1000, x = STATUS_YR))
+g <- g + geom_line(size = 1)
+g <- g + labs(x = "Year", y = expression(Area~(thousands~of~km^{2})))
+# g <- g + scale_colour_discrete(name = "Área Protegida")
+g <- g + scale_x_continuous(limits = c(1990, 2015), breaks = seq(1990, 2015, by = 5))
+g <- g + scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, by = 10))
+# g <- g + geom_vline(xintercept = 2000, colour="gray", linetype = "longdash")
+g <- g + theme_bw()
+# g <- g + theme(legend.position = c(.15, .85))
+g <- g + theme(axis.text = element_text(size = 12), axis.title = element_text(size = 14))
+g
+ggsave(str_c("total_black_geomarea.pdf"), width=30, height=20, units="cm")
+
+
 
 #Total deforestation year (total)
 

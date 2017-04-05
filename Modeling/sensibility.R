@@ -14,79 +14,83 @@ library(foreign)
 library(stringr)
 
 ######################################################## ROBUSTNESS ######################################################
-####################################################### PLACEBO TESTS ####################################################
+################################################### SENSIBILITY TESTS ####################################################
+
+#Define bw's: 1 km to 15 km each 500 m. and including optimal bw
+
+bws_optimal_ctrl <- df_optimal_ctrl %>% .[10, ] %>% as.numeric()
+
+distances_bw <- lapply(bws_optimal_ctrl, function(bw){
+  dist <- c(seq(1, 15, by = 0.5), bw) %>%
+    .[sort.list(.)]
+})
+
+
 list_df <- c(defo_dist[2:3], defo_dist_terr)
 
-#Natural parks
-rd_robust_placebo_national <- list()
-for(i in seq(-10, 10, by = .5)){
-  rd_robust_placebo_national[[as.character(i + 11)]] <-
+#National parks
+rd_robust_sensibility_national <- list()
+for(i in distances_bw[[1]]){
+  rd_robust_sensibility_national[[as.character(i)]] <-
     rdrobust(
       y = list_df[[1]]$loss_sum,
       x = list_df[[1]]$dist_disc,
       covs = cbind(list_df[[1]]$altura_tile_30arc, list_df[[1]]$slope, list_df[[1]]$roughness, list_df[[1]]$prec, 
                    list_df[[1]]$sq_1km.1, list_df[[1]]$treecover_agg, list_df[[1]]$clumps_1),
-      vce = "nn",
+      vce = "hc1",
       all = T,
-      h = 5,
-      c = i
+      h = i[[1]],
     )
 }
 
 #Regional parks
-rd_robust_placebo_regional <- list()
-for(i in seq(from = -10, to = 10, by = 0.5)){
-  rd_robust_placebo_regional[[as.character(i + 11)]] <-
+rd_robust_sensibility_regional <- list()
+for(i in distances_bw[[2]]){
+  rd_robust_sensibility_regional[[as.character(i)]] <-
     rdrobust(
       y = list_df[[2]]$loss_sum,
       x = list_df[[2]]$dist_disc,
       covs = cbind(list_df[[2]]$altura_tile_30arc, list_df[[2]]$slope, list_df[[2]]$roughness, list_df[[2]]$prec, 
                    list_df[[2]]$sq_1km.1, list_df[[2]]$treecover_agg, list_df[[2]]$clumps_1),
-      vce = "nn",
+      vce = "hc1",
       all = T,
-      h = 5,
-      c = i
+      h = i,
     )
 }
 
-
 #Indigenous
-rd_robust_placebo_indigenous <- list()
-for(i in seq(from = -10, to = 10, by = 0.5)){
-  rd_robust_placebo_indigenous[[as.character(i + 11)]] <-
+rd_robust_sensibility_indigenous <- list()
+for(i in distances_bw[[3]]){
+  rd_robust_sensibility_indigenous[[as.character(i)]] <-
     rdrobust(
       y = list_df[[3]]$loss_sum,
       x = list_df[[3]]$dist_disc,
       covs = cbind(list_df[[3]]$altura_tile_30arc, list_df[[3]]$slope, list_df[[3]]$roughness, list_df[[3]]$prec, 
                    list_df[[3]]$sq_1km.1, list_df[[3]]$treecover_agg, list_df[[3]]$clumps_1),
-      vce = "nn",
+      vce = "hc1",
       all = T,
-      h = 5,
-      c = i
+      h = i,
     )
 }
 
 #Black communities
-rd_robust_placebo_black <- list()
-for(i in seq(from = -10, to = 10, by = 0.5)){
-  rd_robust_placebo_black[[as.character(i + 11)]] <-
+rd_robust_sensibility_black <- list()
+for(i in distances_bw[[4]]){
+  rd_robust_sensibility_black[[as.character(i)]] <-
     rdrobust(
       y = list_df[[4]]$loss_sum,
       x = list_df[[4]]$dist_disc,
       covs = cbind(list_df[[4]]$altura_tile_30arc, list_df[[4]]$slope, list_df[[4]]$roughness, list_df[[4]]$prec, 
                    list_df[[4]]$sq_1km.1, list_df[[4]]$treecover_agg, list_df[[4]]$clumps_1),
-      vce = "nn",
+      vce = "hc1",
       all = T,
-      h = 5,
-      c = i
+      h = i,
     )
 }
 
-
-
 ################################################ GRAPHS AND TABLES #####################################################
 ############################################## RD OBJECT TO DATAFRAME FUNCTION ########################################
-rd_to_df <- function(list, name){
+rd_to_df <- function(list, name, dist){
   rd <- lapply(list, "[", "tabl3.str") %>%
     lapply(as.data.frame) %>%
     lapply( "[", 1 , ) %>% 
@@ -97,33 +101,34 @@ rd_to_df <- function(list, name){
     as.data.frame() %>%
     rename(Tratamiento = tabl3.str.Coef, SE = tabl3.str.Std..Err., z = tabl3.str.z, p_value = tabl3.str.P..z., CI_l = tabl3.str.CI.Lower, 
            CI_u = tabl3.str.CI.Upper, N_left = N_l, N_right = N_r, N = N, bw = bws ) %>%
-    mutate(Discontinuidad = seq(from = -10, to = 10, by = 0.5)) %>% mutate_all(funs(as.character)) %>% mutate_all(funs(as.numeric)) %>%
+    mutate(Discontinuidad = dist) %>% mutate_all(funs(as.character)) %>% mutate_all(funs(as.numeric)) %>%
     mutate(type = name) %>% mutate(type = factor(type, levels = c("Nacionales", "Regionales", "Indígenas", "Comunidades negras")))
   return(rd)
 }
 
+sens_tests <- list(rd_robust_sensibility_national,
+                 rd_robust_sensibility_regional,
+                 rd_robust_sensibility_indigenous,
+                 rd_robust_sensibility_black)
 
-placebos <- list(rd_robust_placebo_national,
-                 rd_robust_placebo_regional,
-                 rd_robust_placebo_indigenous,
-                 rd_robust_placebo_black)
-
-placebos_df <- mapply(rd_to_df, list = placebos, 
+senst_test_df <- mapply(rd_to_df, list = sens_tests, dist = distances_bw,
                       name = c("Nacionales", "Regionales", "Indígenas", "Comunidades negras"), SIMPLIFY = F) %>%
-  ldply() %>% arrange(Discontinuidad)
+  ldply() %>% arrange(Discontinuidad) %>% mutate(optimal = ifelse(bw %in% bws_optimal_ctrl, 1, 0))
 
 #Graph LATE for all distances with IC's
 setwd("~/Dropbox/BANREP/Deforestacion/Results/RD/Graphs/")
-g <- ggplot(placebos_df, aes(y = Tratamiento, x = Discontinuidad)) 
-g <- g + facet_wrap( ~ type, ncol=1, scales = "free")
-g <- g + geom_line() 
+g <- ggplot(senst_test_df, aes(y = Tratamiento, x = Discontinuidad)) 
+g <- g + facet_wrap( ~ type, ncol=1, scales = "fixed")
+g <- g + geom_line()
+# g <- g + scale_y_continuous(lim = c(-0.12, 0.2))
+g <- g + coord_cartesian(xlim = c(0, 15))
 g <- g + geom_ribbon(aes(ymin = CI_l, ymax = CI_u), alpha = 0.2)
-g <- g + geom_vline(xintercept = 0, linetype = 2) 
+# g <- g + geom_vline(xintercept = 0, linetype = 2) 
+g <- g + geom_vline(data = senst_test_df[senst_test_df$optimal == 1, ], aes(xintercept = bws_optimal_ctrl), colour="red")
 g <- g + geom_hline(yintercept = 0, linetype = 2, colour = "grey")
 g <- g + theme_bw()
 g
-ggsave("RDggplot_placebos.pdf", width=30, height=20, units="cm")
-
+ggsave("RDggplot_sens_test.pdf", width=30, height=20, units="cm")
 
 
 ############################################### GRAPH AND TABLE FOR PANEL ###############################################
@@ -131,7 +136,7 @@ ggsave("RDggplot_placebos.pdf", width=30, height=20, units="cm")
 
 setwd("~/Dropbox/BANREP/Deforestacion/Results/Panel/")
 list_files <- list.files()
-robust_panel <- list_files[str_detect(list_files, "robust")] %>%
+sensi_panel <- list_files[str_detect(list_files, "sensi")] %>%
   .[order(.)[c(2, 3, 4, 5, 1)]] %>%
   lapply(function(x){
     read.table(x, row.names = NULL) %>%
@@ -147,19 +152,24 @@ robust_panel <- list_files[str_detect(list_files, "robust")] %>%
       mutate(type = factor(type, levels = c("Nacionales", "Regionales", "Indígenas", "Comunidades negras", "Sociedad Civil")))
   }, x = ., name = c("Nacionales", "Regionales", "Indígenas", "Comunidades negras", "Sociedad Civil"), SIMPLIFY = F) %>%
   ldply() %>% arrange(Discontinuidad)
-    
+
 
 #Graph LATE for all distances with IC's
 setwd("~/Dropbox/BANREP/Deforestacion/Results/RD/Graphs/")
-g <- ggplot(robust_panel, aes(y = Tratamiento, x = Discontinuidad)) 
-g <- g + facet_wrap( ~ type, ncol=1, scales = "free")
+g <- ggplot(sensi_panel, aes(y = Tratamiento, x = Discontinuidad)) 
+g <- g + facet_wrap( ~ type, ncol = 1, scales = "fixed")
 g <- g + geom_line() 
 g <- g + geom_ribbon(aes(ymin = CI_l, ymax = CI_u), alpha = 0.2)
-g <- g + geom_vline(xintercept = 0, linetype = 2) 
+# g <- g + geom_vline(xintercept = 0, linetype = 2) 
 g <- g + geom_hline(yintercept = 0, linetype = 2, colour = "grey")
+g <- g + coord_cartesian(xlim = c(0, 15))
 g <- g + theme_bw()
 g
-ggsave("RDggplot_placebos_panel.pdf", width=30, height=20, units="cm")
+ggsave("RDggplot_sense_panel.pdf", width=30, height=20, units="cm")
+
+
+
+
 
 
 
