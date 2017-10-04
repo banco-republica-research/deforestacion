@@ -3,39 +3,31 @@ library(raster)
 library(magrittr)
 library(rgdal)
 
+#Load functions in R
+source("R/process_rasters.R") 
+
+data <- "Deforestacion/Datos/"
+
+setwd("~/Dropbox/BANREP/")
+
+
 #Get administrative GIS data
-setwd("/Volumes/LaCie/Datos")
 colombia_municipios <- 
-  readOGR(dsn = "Geografia", layer="Municipios") %>%
+  readOGR(dsn = paste0(data, "Geografia"), layer="Municipios") %>%
   spTransform(CRS=CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
 
-#Get nightlight data
-processing_rasters <- function(layer.list, ext, shape){
-  layer.list %>%
-    lapply(setExtent, ext) %>%
-    lapply(crop, shape) %>%
-    stack() %>% 
-    mask(shape)
-}
-
-
 # Open .tif files as a raster (the raster package allow to read these files in the disk and not in the memory, this improves the efficiency of functions in R)
-setwd("~")
-setwd("/Volumes/LaCie/NOAA2/TIFF/")
-
-list_raster <- list.files() %>%
+list_raster <- list.files(paste0(paste0(data, "NOAA2/TIFF/")), full.names = TRUE) %>%
   lapply(raster)
 rasters_extent <- extent(list_raster[[1]]) #We need to put all rasters into the same extent (all have the same resolution)
 rasters_lights <- processing_rasters(list_raster, rasters_extent, colombia_municipios)
 
-
 #Deforestation data (only lossyear)
-setwd("/Volumes/LaCie/Deforestacion/Hansen")
-files <- list.files() %>%
+files <- list.files(paste0(data, "Hansen_raw"), full.names = TRUE) %>%
   str_detect("lossyear")
 
 #Open rasters using raster package and crop to Colombia shape 
-loss_year <- lapply(list.files()[files], raster) %>%
+loss_year <- lapply(list.files(paste0(data, "Hansen_raw"), full.names = TRUE)[files], raster) %>%
   lapply(crop, colombia_municipios) 
 
 #Mosaic images to create a RasterLayer
@@ -46,11 +38,13 @@ system.time(loss_year <- do.call(mosaic, loss_year)) # (15 min)
 
 #If mem is full at this time, it is best to save the mosaic as an individual .tif and to erase all temporary files 
 ######################################################################################################
- writeRaster(loss_year, filename = "loss_year_mosaic_30m.tif", format = "GTiff", progress = "text")  #
- removeTmpFiles(0.1)                                                                                 #
+writeRaster(loss_year, filename = paste0(data, "HansenProcessed/loss_year_mosaic_30m.tif"), 
+            format = "GTiff", 
+            progress = "text") 
+removeTmpFiles(0.1)                                                                                 
 ######################################################################################################
 
-loss_year <- raster("loss_year_mosaic_30m.tif") 
+loss_year <- raster(paste0(data, "HansenProcessed/loss_year_mosaic_30m.tif")) 
 
 #Layerize values and create a RasterLayer per value (1:13) and sum to a 1km raster
 loss_year_1km_year <- layerize(loss_year_1km)
@@ -67,7 +61,7 @@ dir.create("Temp")
 rasterOptions(tmpdir = "/Volumes/LaCie/Deforestacion/Hansen/Temp")
 
 system.time(
-loss_year_brick <- layerize(loss_year, filename = "loss_year_brick.tif",
+loss_year_brick <- layerize(loss_year, filename = paste0(data, "HansenProcessed/loss_year_brick.tif"),
                             format = "GTiff",
                             options = "INTERLEAVE=BAND", 
                             progress = "text"))
