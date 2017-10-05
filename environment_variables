@@ -10,5 +10,5 @@ export PYTHONPATH=$PYTHONPATH:$ROOT_FOLDER
 # source db_credentials
 #source "/mnt/data/"$username"/wef_oceans/auth/db_credentials"
 #Add GDAL bindings environment
-export GDAL_DATA="/Users/"$username"/anaconda3/envs/SpatialPython3.5/share/gdal"
+#export GDAL_DATA="/Users/"$username"/anaconda3/envs/SpatialPython3.5/share/gdal"
 

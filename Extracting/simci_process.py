@@ -29,7 +29,10 @@ meta.update(compress='lzw') #Does this affect the GeoTIFF?
 
 
 #Rasterize!
+for column in simci_shapes_proj[0]:
+    rs.rasterize('coca', simci_shapes_proj[0], column, meta)
 
-raster_test= rs.rasterize('Coca', simci_shapes_proj[0], 'cg10', meta) 
+for column in simci_shapes_proj[1]:
+    rs.rasterize('illegal_mining', simci_shapes_proj[1], column, meta)
 
 
