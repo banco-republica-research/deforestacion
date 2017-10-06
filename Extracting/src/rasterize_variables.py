@@ -13,10 +13,12 @@ def rasterize(name, shape, variable, template_meta):
     with rasterio.open(os.path.join(os.environ['DATA_FOLDER'], 'SIMCI' ,file_name), 'w', **template_meta) as out:
         out_arr = out.read(1)
         if(shape[variable].dtypes == 'float64'):
+            print(variable)
             shapes = ((geom, value) for geom, value in zip(shape.geometry,
                                                           shape[variable]))
             burned = features.rasterize(shapes = shapes, fill = 0, out = out_arr,
-                                                      transform = out.transform)
+                                                       transform = out.transform,
+                                                       all_touched = True)
             out.write_band(1, burned)
 
         else:
