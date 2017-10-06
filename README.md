@@ -1,6 +1,6 @@
 # ¿Does national protect areas work for deter deforestation? :evergreen_tree: :evergreen_tree: :evergreen_tree:
 
-This repository contains all the replication code for the paper,* Protected Areas 
+This repository contains all the replication code for the paper,*Protected Areas 
 under Weak Institutions: evidence from Colombia*. This project assess the effect 
 of different designs of protection over deforestation in Colombia. For this goal, 
 we use two different types of evaluation. First, we use regression discontinuities
