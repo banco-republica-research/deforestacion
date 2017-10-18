@@ -1,0 +1,2 @@
+https://storage.googleapis.com/earthenginepartners-hansen/GFC-2016-v1.4/lossyear.txt
+https://storage.googleapis.com/earthenginepartners-hansen/GFC-2016-v1.4/treecover2000.txt
