@@ -14,22 +14,22 @@ library(magrittr)
 library(foreign)
 library(stringr)
 
+#Load functions in R
+
+data <- "Deforestacion/Datos/"
+setwd("~/Dropbox/BANREP/")
+
 ########################################## STRATEGY 2: EFFECTIVE BORDERS ###############################################
 
 #Import datasets (covariates)
-setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes")
-defo <- read.csv("dataframe_deforestacion.csv") %>% dplyr::select(-X)
-cov <- read.csv("geographic_covariates.csv")
-treecover <- read.csv("treecover_2000.csv") %>% dplyr::select(ID, treecover_agg)
+defo <- read.csv(paste0(data, "Dataframes", "/","dataframe_deforestacion.csv")) %>% dplyr::select(-X)
+cov <- read.csv(paste0(data, "Dataframes", "/","geographic_covariates.csv"))
+treecover <- read.csv(paste0(data, "Dataframes", "/", "treecover_2000.csv")) %>% dplyr::select(ID, treecover_agg)
+simci_coca <- read.csv(paste0(data, "Dataframes", "/", "coca_simciextract.csv")) %>% dplyr::select(contains("coca"), ID)
+simci_mining <- read.csv(paste0(data, "Dataframes", "/", "illegal_mining_simciextract.csv")) %>% dplyr::select(contains("EVOA"), ID)
 
-#Conflict covariates (municipal level)
-# muni <- read.csv("colombia_municipios_code_r.csv") %>% dplyr::select(ID, layer)
-# setwd("~/Dropbox/BANREP/Deforestacion/Datos/Conflicto")
-# conflict <- read.dta("conflicto_pre2000.dta")
-# conflict_muni <- merge(muni, conflict, by.x = "layer", by.y = "codmun", all = T)
 
-setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes/Estrategia 2")
-list_files <- list.files()
+list_files <- list.files(paste0(data, "Dataframes", "/", "Estrategia 2"), full.names = TRUE)
 rds_2000 <- list_files[str_detect(list_files, "dist_2000")][c(1:3)] %>%
   lapply(readRDS) %>%
   lapply(data.frame)
@@ -39,9 +39,11 @@ territories_2000 <- list_files[str_detect(list_files, "_2000")] %>%
   lapply(readRDS) %>%
   lapply(data.frame)
 
-#Aggregate deforestation (2001 - 2012)
+#Aggregate deforestation (2001 - 2012) and Coca crops (2001 - 2012)
 defo$loss_sum <- rowSums(defo[, c(4:length(names(defo)) - 1 )])
 loss_sum <- dplyr::select(defo, c(ID, loss_sum)) %>% mutate(loss_sum = loss_sum / 12)
+simci_coca$coca_agg <- rowSums(simci_coca[, c(2:13)])
+
 
 #Merge data
 defo_dist <- lapply(rds_2000, function(x){
@@ -51,7 +53,9 @@ defo_dist <- lapply(rds_2000, function(x){
     mutate(., dist_disc = dist_disc / 1000) %>%
     # mutate(., buffer_id = as.character(buffer_id)) %>% mutate(., buffer_id = as.factor(buffer_id))
     merge(., cov, by = "ID", all.x = T) %>%
-    merge(., treecover, by = "ID")
+    merge(., treecover, by = "ID") %>%
+    merge(., simci_coca, by = "ID", all.x = T) %>%
+    merge(., simci_mining, by = "ID", all.x = T)
 })
 
 defo_dist_terr <- lapply(territories_2000, function(x){
@@ -61,7 +65,9 @@ defo_dist_terr <- lapply(territories_2000, function(x){
     mutate(., dist_disc = dist_disc / 1000) %>%
     # mutate(., buffer_id = as.character(buffer_id)) %>% mutate(., buffer_id = as.factor(buffer_id))
     merge(., cov, by = "ID", all.x = T) %>%
-    merge(., treecover, by = "ID")
+    merge(., treecover, by = "ID") %>%
+    merge(., simci_coca, by = "ID", all.x = T) %>%
+    merge(., simci_mining, by = "ID", all.x = T)
 })
 
 #Regression discontinuity for fixed bandwidths (5 and 10 km)
@@ -181,6 +187,64 @@ saveRDS(rd_robust_terr_2_ctrl, "rd_robust_terr_2_ctrl.rds")
 
 rd_robust_parks_2_ctrl <- readRDS("rd_robust_parks_2_ctrl.rds")
 rd_robust_terr_2_ctrl <- readRDS("rd_robust_terr_2_ctrl.rds")
+
+
+############################# SIMCI DATA ##################################
+
+#Regression discontinuity with controls (optimal bandwidth)
+
+rd_robust_parks_2_coca <- lapply(defo_dist[1:2], function(park){
+  rdrobust(
+    y = park$coca_agg,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$clumps_1, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    nnmatch = 3,
+    all = T
+  )
+})
+
+rd_robust_terr_2_coca <- lapply(defo_dist_terr, function(park){
+  rdrobust(
+    y = park$coca_agg,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$clumps_1, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    nnmatch = 3,
+    all = T
+  )
+})
+
+rd_robust_parks_2_mining <- lapply(defo_dist[1:2], function(park){
+  rdrobust(
+    y = park$illegal_mining_EVOA_2014,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$clumps_1, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    all = T
+  )
+})
+
+rd_robust_terr_2_mining <- lapply(defo_dist_terr, function(park){
+  rdrobust(
+    y = park$illegal_mining_EVOA_2014,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$clumps_1, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    all = T
+  )
+})
+
+saveRDS(rd_robust_terr_2_coca, paste0("Backup Data", "/", "rd_robust_terr_2_coca.rds"))
+saveRDS(rd_robust_terr_2_mining, paste0("Backup Data", "/", "rd_robust_terr_2_mining.rds"))
+
+rd_robust_parks_2_ctrl <- readRDS("rd_robust_parks_2_ctrl.rds")
+rd_robust_terr_2_ctrl <- readRDS("rd_robust_terr_2_ctrl.rds")
+
 
 
 

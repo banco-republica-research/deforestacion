@@ -13,14 +13,22 @@ library(stringr)
 library(stargazer)
 library(ggplot2)
 
-#Import datasets
-setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes")
-defo <- read.csv("dataframe_deforestacion.csv") %>% dplyr::select(-X)
-cov <- read.csv("geographic_covariates.csv") %>% dplyr::select(-X)
-clumps <- read.csv("clump_id_dataframe_2000.csv") %>% dplyr::select(ID, clumps)
+data <- "Deforestacion/Datos/"
+graphs <- "Deforestacion/Results/RD/Graphs/"
+setwd("~/Dropbox/BANREP/")
 
-setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes/Estrategia 2")
-list_files <- list.files()
+
+
+
+#Import datasets
+
+defo <- read.csv(paste0(data, "Dataframes", "/","dataframe_deforestacion.csv")) %>% dplyr::select(-X)
+cov <- read.csv(paste0(data, "Dataframes", "/","geographic_covariates.csv"))
+treecover <- read.csv(paste0(data, "Dataframes", "/", "treecover_2000.csv")) %>% dplyr::select(ID, treecover_agg)
+simci_coca <- read.csv(paste0(data, "Dataframes", "/", "cocasimci.csv")) %>% dplyr::select(contains("coca"), ID)
+simci_mining <- read.csv(paste0(data, "Dataframes", "/", "illegal_miningsimci.csv")) %>% dplyr::select(contains("EVOA"), ID)
+
+list_files <- list.files(paste0(data, "Dataframes", "/", "Estrategia 2"), full.names = TRUE)
 rds_2000 <- list_files[str_detect(list_files, "dist_2000")][c(1:3)] %>%
   lapply(readRDS) %>%
   lapply(data.frame)
@@ -40,7 +48,10 @@ defo_dist <- lapply(rds_2000, function(x){
     mutate(., loss_sum = loss_sum * 100) %>%
     mutate(., dist_disc = ifelse(treatment == 1, 1, -1) * dist) %>%
     mutate(., dist_disc = dist_disc / 1000) %>%
-    merge(., cov, by = "ID", all.x = T)
+    merge(., cov, by = "ID", all.x = T) %>%
+    merge(., treecover, by = "ID", all.x = T) %>%
+    merge(., simci_coca, by = "ID", all.x = T) %>%
+    merge(., simci_mining, by = "ID", all.x = T)
     # merge(., clumps, by = "ID", all.x = T)
     # mutate(clumps = ifelse(is.na(clumps), 0, 1))
 })
@@ -50,7 +61,10 @@ defo_dist_terr <- lapply(territories_2000, function(x){
     mutate(., loss_sum = loss_sum * 100) %>%
     mutate(., dist_disc = ifelse(treatment == 1, 1, -1) * dist) %>%
     mutate(., dist_disc = dist_disc / 1000) %>%
-    merge(., cov, by = "ID", all.x = T)
+    merge(., cov, by = "ID", all.x = T) %>%
+    merge(., treecover, by = "ID", all.x = T) %>%
+    merge(., simci_coca, by = "ID", all.x = T) %>%
+    merge(., simci_mining, by = "ID", all.x = T)
     # merge(., clumps, by = "ID", all.x = T) %>%
     # mutate(clumps = ifelse(is.na(clumps), 0, 1))
 })
@@ -293,9 +307,12 @@ mapply(function(x, type){
 defo_dist_all <- c(defo_dist[2:3], defo_dist_terr) #Collapse all dataframes into one list and remove "all"
 
 l <- lapply(defo_dist_all, function(x){
-  mutate(x, bin = cut(x$dist_disc, breaks = c(-50:50), include.lowest = T)) %>%
+  df <- x
+  df_dist <- x[, "dist_disc"]
+  
+  mutate(df, bin = cut(df_dist, breaks = c(-50:50), include.lowest = T)) %>%
     group_by(bin) %>%
-    summarize(meanbin = mean(loss_sum), sdbin = sd(loss_sum), n = length(ID)) %>%
+    summarize(meanbin = mean(illegal_mining_EVOA_2014), sdbin = sd(illegal_mining_EVOA_2014), n = length(ID)) %>%
     .[complete.cases(.),] %>%
     as.data.frame() %>%
     mutate(treatment = ifelse(as.numeric(row.names(.)) > 50, 1, 0), bins = row.names(.)) %>%
@@ -343,12 +360,12 @@ g <- ggplot(l_all, aes(y = meanbin, x = as.numeric(bins), colour = as.factor(tre
 g <- g + facet_wrap( ~ type, ncol=2)
 g <- g + stat_smooth(method = "loess") 
 g <- g + geom_point(colour = "black", size = 1)
-g <- g + scale_x_continuous(limits = c(-20, 20))
-g <- g + scale_y_continuous(limits = c(0, 0.3))
+#g <- g + scale_x_continuous(limits = c(-20, 20))
+#g <- g + scale_y_continuous(limits = c(0, 0.3))
 g <- g + labs(x = "Distancia (Km)", y = "Deforestación (Ha x Km2)")
 g <- g + guides(colour = FALSE)
 g <- g + theme_bw()
 g
-ggsave("RDggplot_all_strategy1.pdf", width=30, height=20, units="cm")
+ggsave(paste0(graphs, "RDggplot_all_strategy2_oro.pdf"), width=30, height=20, units="cm")
 
 
