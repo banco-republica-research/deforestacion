@@ -2,5 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
-.pyc
-.txt
+*.pyc
+*.txt
+.Rapp.history
