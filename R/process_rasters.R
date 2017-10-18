@@ -6,10 +6,10 @@
 # Set extent and crop a list of raster layers to stack them
 processing_rasters <- function(layer.list, ext, shape){
   layer.list %>%
-    lapply(setExtent, ext) %>%
-    lapply(crop, shape) %>%
-    stack() %>% 
-    mask(shape)
+    lapply(raster::setExtent, ext) %>%
+    lapply(raster::crop, shape) %>%
+    raster::stack() %>%
+    raster::mask(shape)
 }
 
 

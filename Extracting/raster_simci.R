@@ -1,77 +1,79 @@
+###############################################################################
+######################### EXTRACT DATA FROM SIMCI RASTERS #####################
+###############################################################################
+
 library(stringr)
 library(raster)
 library(magrittr)
 library(rgdal)
 library(foreign)
 
-#Load functions in R
+# Load functions in R
+setwd("~/GitHub/deforestacion/")
 source("R/process_rasters.R") 
 
+# Set directories
 data <- "Deforestacion/Datos/"
-
 setwd("~/Dropbox/BANREP/")
 
+# Load Colombia shapefile to mask/crop rasters
 colombia_municipios <- 
   readOGR(dsn = paste0(data, "Geografia"), layer="Municipios") %>%
   spTransform(CRS=CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
 
-# Open .tif files as a raster (the raster package allow to read these files in the disk and not in the memory, this improves the efficiency of functions in R)
-list_raster <- list.files(paste0(paste0(data, "NOAA2/TIFF/")), full.names = TRUE) %>%
-  lapply(raster)
-rasters_extent <- extent(list_raster[[1]]) #We need to put all rasters into the same extent (all have the same resolution)
-rasters_lights <- processing_rasters(list_raster, rasters_extent, colombia_municipios)
-writeRaster(rasters_lights[[1]], paste0(data, "NOAA2/", "light_brick_colombia.tif"), overwrite = TRUE)
-
-  
-####################################################################
-####################### RASTERIZE SHAPEFILES #######################
-####################################################################
-
-# THIS PROCESS WAS MADE IN PYTHON FOR EFFICIENCY REASONS. PYTHON IS
-# FASTER TO OPEN GRID POLYGON DATA AND MADE A COMPARABLE JOB TO R 
-# WHEN CREATING RASTERS. THIS CODE CAN BE USE IN CASE YOU WANT TO HAVE
-# ALL THE DATA CREATION PIPELINE IN R.
-
-# Open shapefiles and project to a common reference
-simci_data <- lapply(c("Coca_01_16_grillas1k", "EVOA_MTPL_1k_18N"), function(x){
-  readOGR(dsn = paste0(data, "SIMCI"), layer = x) %>%
-    spTransform(CRS=CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")) 
-})
-
-# Example of rasterize
-r_ <- raster::rasterize(x = simci_data[[1]], 
-                        y = rasters_lights[[1]],
-                        field = "COCA_C_11",
-                        filename = "coca_COCA_C_11.tif",
-                        overwrite = T
-                        )
-######################################################################
-
-
+#Get deforestation raster for reference 
 res <- brick(paste0(data, "HansenProcessed", "/", "loss_year_brick_1km.tif"))
-treecover <- brick(paste0(data, "HansenProcessed", "/", "treecover_1km.tif"))
 
-
-#Open rasterized rasters from Python (raster_simci.py)
+#Load SIMCI processed rasters (from Python script) and make pixels comparable
 file_names <- c("coca", "illegal_mining")
 
 simci_rasters <- lapply(file_names, function(x){
-  #Open and process rasters (crop and set extent)
+  #Open and process rasters (correct zeros)
   proc_raster <- list.files(paste0(data, "SIMCI"), full.names = TRUE) %>%
-    .[str_detect(., x)] %>%
-    lapply(raster) %>%
-    processing_rasters(., extent(res), colombia_municipios)
+  .[str_detect(., x)] %>%
   
-  #Resample to deforestation data (make all pixels comparable - last resort after crop and extent)
-  raster_resampled <- resample(proc_raster, res, filename = paste0(data, "SIMCI", "/", x, "_1km_brick.tif"),
-                               format = "GTiff",
-                               options = "INTERLEAVE=BAND", 
-                               progress = "text", overwrite = T)
+    lapply(., function(layer){
+    x <- raster(layer)
+    x[is.na(x[])] <- 0
+    print("Zero correction [DONE]")
+    return(x)
+  }) %>% 
+    raster::brick() %>%
+    setExtent(., extent(res))
+  print(paste0(x, " [PROCESSED TO STACK]"))
   
-  #Extract data
-  raster_plain_csv <- as.data.frame(raster_resampled, xy = TRUE, na.rm = TRUE)
+  # #Resample to deforestation data (make all pixels comparable - last resort after crop and extent)
+  # raster_resampled <- resample(proc_raster, res, filename = paste0(data, "SIMCI", "/", x, "_1km_brick.tif"),
+  #                              format = "GTiff",
+  #                              options = "INTERLEAVE=BAND",
+  #                              progress = "text", overwrite = T)
+  # print(paste0(x, " [RESAMPLED]"))
+  #
+  # #Extract data
+  raster_plain_csv <- as.data.frame(proc_raster, xy = TRUE, na.rm = TRUE)
   raster_plain_csv$ID <- row.names(raster_plain_csv)
-  write.csv(raster_plain_csv, paste0(data, "Dataframes", "/", x, "simci.csv"))
+  write.csv(raster_plain_csv, paste0(data, "Dataframes", "/", x, "_", "simci", "_", "extract", ".csv"))
+  print(paste0(x, "[EXTRACTED]"))
 })
 
-identical(coordinates(simci_rasters[[1]]), coordinates(res[[1]]))
+
+############################# VERIFICATIONS ###################################
+
+#YOU CAN LOAD COCA SHAPEFILE (RAW DATA) TO VERIFY MAX IN EACH YEAR/LAYER
+#HERE 2016 AS AN EXAMPLE
+
+coca <- readOGR(dsn = paste0(data, "SIMCI"), layer = "Coca_01_16_grillas1k")
+coca_16 <- raster(paste0(data, "SIMCI", "/", "coca_COCA_C_16.tif"))
+identical(cellStats(coca_16, stat = max), max(coca[, "COCA_C_16"]))
+
+#VERIFY RASTER RESOLUTION (SIMCI AND DEFORESTATION) FOR BOTH COCA AND MINING
+identical(coordinates(res), coordinates(simci_rasters[[1]]))
+identical(coordinates(res), coordinates(simci_rasters[[2]]))
+
+##############################################################################
+
+
+
+
+
+
