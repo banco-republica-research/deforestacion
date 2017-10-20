@@ -484,31 +484,33 @@ stargazer(df_optimal_final, summary = F, decimal.mark = ",", digits = 3, digit.s
 
 #Heterogeneus effects by clump and fixed bw's (5 km)
 
-list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
   lapply(., function(x) base::subset(x, roads == 1))
-rd_robust_fixed_five_clump1_2 <-  lapply(list_df, function(park){
+rd_robust_fixed_five_clump1_2_coca <-  lapply(list_df, function(park){
   rdrobust(
-    y = park$loss_sum,
+    y = park$coca_agg,
     x = park$dist_disc,
+    c = 0,
     covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
-    all = T,
-    h = 5
+    all = T
+    #h = 5
   )
 })
 
 list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
   lapply(function(x) filter(x, roads == 0))
-rd_robust_fixed_five_clump0_2 <-  lapply(list_df, function(park){
+rd_robust_fixed_five_clump0_2_coca <-  lapply(list_df, function(park){
   rdrobust(
-    y = park$loss_sum,
+    y = park$coca_agg,
     x = park$dist_disc,
+    c = 0,
     covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
-    all = T,
-    h = 5
+    all = T
+    #h = 5
   )
 })
 
