@@ -1,7 +1,7 @@
 ###############################################################################
 ######################### EXTRACT DATA FROM SIMCI RASTERS #####################
 ###############################################################################
-
+rm(list=ls())
 library(stringr)
 library(raster)
 library(magrittr)
@@ -22,7 +22,7 @@ colombia_municipios <-
   spTransform(CRS=CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
 
 #Get deforestation raster for reference 
-res <- brick(paste0(data, "HansenProcessed", "/", "loss_year_brick_1km.tif"))
+res <- brick(paste0(data, "HansenProcessed/1.4/loss_year_brick_1km.tif"))
 
 #Load SIMCI processed rasters (from Python script) and make pixels comparable
 file_names <- c("coca", "illegal_mining")

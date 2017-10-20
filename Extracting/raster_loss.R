@@ -1,9 +1,16 @@
+###############################################################################
+######################### EXTRACT DATA FROM DEFORESTATION #####################
+##### PROCESS HANSEN DATA: CHANGE RESOLUTION AND PREPARE TO EXTRACT DATA ######
+###############################################################################
+
+rm(list=ls())
 library(stringr)
 library(raster)
 library(magrittr)
 library(rgdal)
 
 #Load functions in R
+setwd("~/GitHub/deforestacion/")
 source("R/process_rasters.R") 
 
 data <- "Deforestacion/Datos/"
@@ -23,11 +30,11 @@ rasters_extent <- extent(list_raster[[1]]) #We need to put all rasters into the 
 rasters_lights <- processing_rasters(list_raster, rasters_extent, colombia_municipios)
 
 #Deforestation data (only lossyear)
-files <- list.files(paste0(data, "Hansen_raw"), full.names = TRUE) %>%
+files <- list.files(paste0(data, "hansen_raw"), full.names = TRUE) %>%
   str_detect("lossyear")
 
 #Open rasters using raster package and crop to Colombia shape 
-loss_year <- lapply(list.files(paste0(data, "Hansen_raw"), full.names = TRUE)[files], raster) %>%
+loss_year <- lapply(list.files(paste0(data, "hansen_raw"), full.names = TRUE)[files], raster) %>%
   lapply(crop, colombia_municipios) 
 
 #Mosaic images to create a RasterLayer
@@ -38,30 +45,24 @@ system.time(loss_year <- do.call(mosaic, loss_year)) # (15 min)
 
 #If mem is full at this time, it is best to save the mosaic as an individual .tif and to erase all temporary files 
 ######################################################################################################
-writeRaster(loss_year, filename = paste0(data, "HansenProcessed/loss_year_mosaic_30m.tif"), 
+writeRaster(loss_year, filename = paste0(data, "HansenProcessed/1.4/loss_year_mosaic_30m.tif"), 
             format = "GTiff", 
             progress = "text") 
 removeTmpFiles(0.1)                                                                                 
 ######################################################################################################
 
-loss_year <- raster(paste0(data, "HansenProcessed/loss_year_mosaic_30m.tif")) 
-
-#Layerize values and create a RasterLayer per value (1:13) and sum to a 1km raster
-loss_year_1km_year <- layerize(loss_year_1km)
+loss_year <- raster(paste0(data, "HansenProcessed/1.4/loss_year_mosaic_30m.tif")) 
 
 ################################## Leonardo's solution ######################################## 
 # Another option is to layerize first and then, using the same command, aggreagate the raster #
 # by the desired resolution (1 km )                                                           #
 ###############################################################################################
 
-#Layerize create big files in .grd binary format which does not have any compression. For that reason we change 
-# the tmpdir directory to a new one with more space (1 Tb LaCie EHD). 
-
-dir.create("Temp")
-rasterOptions(tmpdir = "/Volumes/LaCie/Deforestacion/Hansen/Temp")
+# Layerize create big files in .grd binary format which does not have any compression. All the processing
+# is done in the swap memory, hence be cautious of free disk space . 
 
 system.time(
-loss_year_brick <- layerize(loss_year, filename = paste0(data, "HansenProcessed/loss_year_brick.tif"),
+loss_year_brick <- layerize(loss_year, filename = paste0(data, "HansenProcessed/1.4/loss_year_brick.tif"),
                             format = "GTiff",
                             options = "INTERLEAVE=BAND", 
                             progress = "text"))
@@ -69,7 +70,7 @@ loss_year_brick <- layerize(loss_year, filename = paste0(data, "HansenProcessed/
 #Now, we want to create a grid of 1 km2 (using the night light data as reference grid)
 fact <- round(dim(loss_year_brick)[1:2] / dim(rasters_lights[[1]])[1:2]) 
 
-agg <- aggregate(loss_year_brick, fact, filename = "loss_year_brick_agg.tf",
+agg <- aggregate(loss_year_brick, fact, filename = paste0(data, "HansenProcessed/1.4/loss_year_brick_agg.tif"),
                  format = "GTiff",
                  options = "INTERLEAVE = BAND",
                  progress = "text" ) #Proportion of deforestation in the 1 km grid 
@@ -77,13 +78,15 @@ agg <- aggregate(loss_year_brick, fact, filename = "loss_year_brick_agg.tf",
 agg_mask <- mask(agg, colombia_municipios)
 rasters_lights <- setExtent(rasters_lights, agg_mask)
 
-res <- resample(agg_mask, rasters_lights, filename = "loss_year_brick_1km.tif",
+res <- resample(agg_mask, rasters_lights, filename = paste0(data, "HansenProcessed/1.4/loss_year_brick_1km.tif"),
                 format = "GTiff",
                 options = "INTERLEAVE=BAND", 
                 progress = "text", overwrite = T)
 
 #Verification that all cells are the same
 identical(coordinates(res), coordinates(rasters_lights))
+
+#Extract data to dataframe (csv)
 
 
 

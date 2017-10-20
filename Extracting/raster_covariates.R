@@ -2,7 +2,7 @@
 ####################### EXTRACT DATA FROM VARIOUS RASTERS #####################
 ############################ (ESTIMATION COVARIATES) ##########################
 ###############################################################################
-
+rm(list=ls())
 library(raster)
 library(magrittr)
 library(rgdal)
@@ -20,7 +20,7 @@ data <- "Deforestacion/Datos/"
 setwd("~/Dropbox/BANREP/")
 
 #Get deforestation raster for reference 
-res <- brick(paste0(data, "HansenProcessed", "/", "loss_year_brick_1km.tif"))
+res <- brick(paste0(data, "HansenProcessed/1.4/loss_year_brick_1km.tif"))
 
 # Load Colombia shapefile to mask/crop rasters
 colombia_municipios <- 
@@ -47,7 +47,6 @@ clump_lights[clump_lights > 1] <- 1
 
 #Clumps to polygons
 p1 <- rasterToPolygons(clump_lights, dissolve = T)
-setwd("~/Dropbox/BANREP/Deforestacion/Datos")
 writeOGR(p1, paste0(data, "Clumps", "/", "polygon_clump_layer_2000.shp"), 
          layer = "clumps", 
          driver = "ESRI Shapefile", 
