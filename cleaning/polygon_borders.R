@@ -5,7 +5,7 @@
 ###                                  (NATURAL PARKS)                                       ###
 ##############################################################################################
 ##############################################################################################
-
+rm(list=ls())
 library(raster)
 library(rgdal)
 library(magrittr)
@@ -22,12 +22,20 @@ library(dplyr)
 library(broom)
 library(stringr)
 
-setwd("/Volumes/LaCie/Deforestacion/Hansen")
-res <- brick("loss_year_brick_1km.tif")
+# Load functions in R
+setwd("~/deforestacion/")
+source("R/process_rasters.R") 
+source("cleaning/colombia_raster.R")
+
+# Set directories
+data <- "Deforestacion/Datos/"
+setwd("~/Dropbox/BANREP/")
+
+res <- brick(paste0(data, "HansenProcessed", "/", "1.4", "/","loss_year_brick_1km.tif"))
 
 #Open natural parks shapefile (2 SP object, 1. Projected in meters and 2. Mercator)
-setwd("~/Dropbox/BANREP/Deforestacion/Datos/UNEP")
-natural_parks <- readOGR(dsn = "WDPA_June2016_COL-shapefile", layer = "WDPA_June2016_COL-shapefile-polygons")
+natural_parks <- readOGR(dsn = paste0(data, "UNEP", "/", "WDPA_June2016_COL-shapefile"), 
+                         layer = "WDPA_June2016_COL-shapefile-polygons")
 natural_parks_proj <- spTransform(natural_parks, CRS=CRS("+init=epsg:3857")) #Projection in meters
 
 #Remove NP that are out of continental land and parks after 2012
