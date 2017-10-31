@@ -5,8 +5,12 @@
 #     from Hansen, et. al., (2000) in its version 1.4.
 
 #Change directory from root and create variables
-cd  
-mkdir $DATA_FOLDER/hansen_raw
+cd
+
+if [! -d $DATA_FOLDER/hasen_raw]
+then
+	mkdir -p $DATA_FOLDER/hansen_raw
+
 cd $ROOT_FOLDER/download_data
 
 colombia_grids="20N_090W|10N_090W|00N_090W|20N_080W|10N_080W|00N_080W|20N_070W|10N_070W|00N_070W"

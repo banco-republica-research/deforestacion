@@ -9,7 +9,7 @@ library(rgdal)
 library(foreign)
 
 # Load functions in R
-setwd("~/GitHub/deforestacion/")
+setwd("~/deforestacion/")
 source("R/process_rasters.R") 
 
 # Set directories
@@ -42,13 +42,6 @@ simci_rasters <- lapply(file_names, function(x){
     setExtent(., extent(res))
   print(paste0(x, " [PROCESSED TO STACK]"))
   
-  # #Resample to deforestation data (make all pixels comparable - last resort after crop and extent)
-  # raster_resampled <- resample(proc_raster, res, filename = paste0(data, "SIMCI", "/", x, "_1km_brick.tif"),
-  #                              format = "GTiff",
-  #                              options = "INTERLEAVE=BAND",
-  #                              progress = "text", overwrite = T)
-  # print(paste0(x, " [RESAMPLED]"))
-  #
   # #Extract data
   raster_plain_csv <- as.data.frame(proc_raster, xy = TRUE, na.rm = TRUE)
   raster_plain_csv$ID <- row.names(raster_plain_csv)
