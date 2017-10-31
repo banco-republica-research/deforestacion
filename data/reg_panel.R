@@ -7,7 +7,7 @@ rm(list=ls())
 library(data.table)
 library(foreign)
 
-# Leonardo
+# mac
 setwd("C:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/")
 # Ivan 
 # setwd("Dropbox/BANREP/Deforestacion/")
