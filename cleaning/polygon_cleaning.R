@@ -22,7 +22,7 @@ library(broom)
 library(stringr)
 library(pbapply)
 
-setwd("~/Dropbox/BANREP/Deforestacion/Datos/HansenProcessed/")
+setwd("~/Dropbox/BANREP/Deforestacion/Datos/HansenProcessed/1.4/")
 res <- brick("loss_year_brick_1km.tif")
 
 #Open natural parks shapefile (2 SP object, 1. Projected in meters and 2. Mercator)
