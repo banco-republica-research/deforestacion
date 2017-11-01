@@ -7,13 +7,16 @@
 
 
 #Clean SpatialPoints (from polygons of Natural parks) -remove points out of national frontiers and border points-
-clean_treatments_border <- function(x, points_border){
+clean_treatments_border <- function(x, points_border, dist){
+  # x: sp polygon object
+  # points_border: a sp_polygon or sp_polygon_dataframe object to define the boundaries
+  # dist: min distance between x from points_border to remove points from x
   print(x$ID)
   sp <- x %>% as("SpatialLines") %>% as("SpatialPoints")
   knn_border <- get.knnx(coordinates(points_border), coordinates(sp), k = 1, algorithm = "kd_tree") %>%
     data.frame(.)
   sp_final <- SpatialPointsDataFrame(sp, knn_border, proj4string = CRS("+init=epsg:3857")) %>%
-    .[!.@data$nn.dist < 1000, ] 
+    .[!.@data$nn.dist < dist, ] 
   
 }
 
