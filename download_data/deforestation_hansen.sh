@@ -10,6 +10,7 @@ cd
 if [! -d $DATA_FOLDER/hasen_raw]
 then
 	mkdir -p $DATA_FOLDER/hansen_raw
+fi
 
 cd $ROOT_FOLDER/download_data
 

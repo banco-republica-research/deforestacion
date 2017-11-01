@@ -1,14 +1,28 @@
+#File: environment_variables
+# This file makes sharing and reproducibility easier :) 
+
 username=$(whoami)
-# location of code repository "/path/to/repo/"
-export ROOT_FOLDER="Users/"$username"/Deforestacion"
-# location of data "/path/to/data/"
-export DATA_FOLDER="Dropbox/BANREP/Deforestacion/Datos"
+
+# location of code repository "path/to/repo/"
+cd 
+if [[ ! -d deforestacion ]]
+then 
+  read dir_repo
+  export ROOT_FOLDER=$dir_repo
+else 
+  echo "Repo folder is in system ROOT: Users/"$username
+  export ROOT_FOLDER="Users/"$username"/deforestacion"
+fi
+
+# location of data [in dropbox] "dropbox/path/to/data"
+echo "Write the path to project folder within Dropbox"
+read dir_data
+export DATA_FOLDER="Users/"$username"/Dropbox/"$dir_data
+
 # location of model outputs
 #export OUTPUT_FOLDER="/mnt/data/"$username"/models/"
 # add lib folder to PYTHONPATH
 export PYTHONPATH=$PYTHONPATH:$ROOT_FOLDER
-# source db_credentials
-#source "/mnt/data/"$username"/wef_oceans/auth/db_credentials"
 #Add GDAL bindings environment
 #export GDAL_DATA="/Users/"$username"/anaconda3/envs/SpatialPython3.5/share/gdal"
 
