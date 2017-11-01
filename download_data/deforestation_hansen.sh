@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# file: deforestation_hansen.sh
+
 # Script to download Hansen's deforestation data [Loss forest/year and Treecover in baseline] 
 
 # --> This script is valid for the Global Forest Change 2000-2016 data 
