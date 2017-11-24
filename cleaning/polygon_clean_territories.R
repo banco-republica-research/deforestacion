@@ -23,26 +23,84 @@ library(stringr)
 library(pbapply)
 
 # Load functions in R
-setwd("~/deforestacion/")
+setwd(Sys.getenv("ROOT_FOLDER"))
 source("R/process_rasters.R")
 source("R/clean_polygons.R")
 source("R/calculate_distances.R")
 source("cleaning/colombia_continental.R")
 
 # Set directories
-data <- "Deforestacion/Datos/"
-setwd("~/Dropbox/BANREP/")
+setwd(Sys.getenv("DATA_FOLDER"))
 
 #Get deforestation raster for reference: deforestation
-res <- brick(paste0(data, "HansenProcessed/1.4/loss_year_brick_1km.tif"))
+res <- brick("HansenProcessed/1.4/loss_year_brick_1km.tif")
 
 
 ###############################################################################
-######### READ SHAPEFILES: NATURAL PROTECTED AREAS AND ARRANGE DATA ###########
+#################### READ SHAPEFILES: TERRITORIES DATA  #######################
+# 1. As with Natural Parks, here geoms will be stored in lists. In this case, 
+# two lists will be created: territories proj in Mercator and territories_proj
+# with meters proj. This is set this way to make distance calculations.
 ###############################################################################
+
+black_territories <- readOGR(dsn = "Comunidades", 
+                             layer="Tierras de Comunidades Negras (2015)")
+
+indigenous_territories <- readOGR(dsn = "Resguardos", 
+                                  layer="Resguardos Indigenas (2015)") 
+
+# Make some little changes to geom dataframe 
+
+colnames(indigenous_territories@data)[8] <- "RESOLUCION"
+territories <- list(black_territories, indigenous_territories) %>%
+  lapply(spTransform, CRS=CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+
+# Project to meters and remove non-continental parts
+
+territories_proj <- lapply(territories, spTransform, CRS=CRS("+init=epsg:3857")) %>% 
+  lapply(., function(x){
+    x@data <- mutate(x@data, year = str_replace_all(
+      str_extract(x@data$"RESOLUCION", "[-][1-2][0, 9][0-9][0-9]"), "-", ""))
+    return(x[!as.numeric(x@data$year) > 2016, ])
+  })  %>%
+  #Remove sections of park outside continental Colombia // remove identifiers [BUG]
+  lapply(., function(x){
+    gIntersection(x, colombia_municipios[[2]], byid = T, drop_lower_td = T)
+  }) %>%
+  lapply(.,function(x){
+    x$ID <- c(1:length(x))
+    return(x)
+  })
+
+
+###############################################################################
+################ CALCULATE BUFFERS AND CONVERT FROM GEOM TO LIST ##############
+############################# 50 KM / PROJ AND NON_PROJ #######################
+###############################################################################
+
+#Buffers to asses "treatment zones" of 50 km 
+buffers_territories <- lapply(territories_proj, gBuffer, byid = T, width = 50000) %>% 
+  lapply(., spTransform, CRS=CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+
+#Create a list of individual polygons per natural park
+list_polygons_territories <- lapply(territories_proj, polygon_to_list)
+list_polygons_buffers_territories  <- lapply(buffers_territories, polygon_to_list)
+
+
+###############################################################################
+######### CLEANING BORDERS: NON-VALID BOUNDARIES AND SEA BOUNDARIES ###########
+###############################################################################
+
+###############################################################################
+################# READ SHAPEFILES: NATURAL PROTECTED AREAS  ###################
+# 1. As with territories, here geoms will be stored in lists. In this case, 
+# two lists will be created: natural_parks in Mercator and natural_parks_proj
+# with meters proj. This is set this way to make distance calculations.
+###############################################################################
+
 
 #Open natural parks shapefile (2 SP object, 1. Projected in meters and 2. Mercator)
-natural_parks <- readOGR(dsn = paste0(data, "UNEP", "/", "WDPA_June2016_COL-shapefile"), 
+natural_parks <- readOGR(dsn = paste0("UNEP", "/", "WDPA_June2016_COL-shapefile"), 
                          layer = "WDPA_June2016_COL-shapefile-polygons",
                          stringsAsFactors = F)
 natural_parks_proj <- spTransform(natural_parks, CRS=CRS("+init=epsg:3857")) #Projection in meters
@@ -71,23 +129,28 @@ natural_parks <- list(natural_parks, natural_parks_proj) %>%
 
 ###############################################################################
 #################################### NOTE #####################################
-# 1. FOR IDENTIFICATION PURPOSES, AN ID VARIABLE IS CREATED TO EACH POLYGON
-# USING THE ROW.NUMBER.
-# 2. THIS ID IS PASSED ALSO TO THE LIST ID - THAT WAY WE CAN IDENTIFY TO WHICH
-# PARK THE DATA IS RELATED TO.
+# AS WITH NATURAL PARKS, TO CLEANING THE BOUNDARIES WE NEED TO MAKE SOME SP 
+# OPERATIONS FIRST. THE MOST DELICATE ONE IS THE INTERSECTION/UNION BETWEEN
+# GEOMS WHICH CAN YIELD A LOT OT ERRORS DUE TO GEOM ERRORS LIKE SELF-INTERSECTS
+# WE SIMPLIFY GEOMETRIES TO CORRECT THOSE: BUFFER AND SIMPLIFY BEFORE UNIONS
 ###############################################################################
 ###############################################################################
 
-natural_parks[[2]]@data$ID <- c(1:dim(natural_parks[[2]])[1])
-natural_parks[[1]]@data$ID <- c(1:dim(natural_parks[[1]])[1])
+territories_hole_free <- lapply(territories_proj, remove_holes)
 
+#Dissolve and merge all geometries to simplify borders (eliminate subgeometries)
+territories_dissolve <- lapply(territories_hole_free, function(x){
+  unionSpatialPolygons(x, c(1:length(x@polygons))) 
+})
 
-###############################################################################
-###############################################################################
+territories_union <- lapply(territories_dissolve, gUnaryUnion)
 
-
-
-#Remove redundant geometries from black territories 
+#Clean natural parks from both (create the union between borth territories)
+territories_merge <- territories_union %>%
+  lapply(function(x){
+    gBuffer(x, byid = T, width = 0) %>%
+      gSimplify(., tol = 0.001)
+  })
 
 #Get union of polygons
 natural_parks_indigenous_merge <- gUnion(territories_merge[[2]], natural_parks[[2]])
@@ -96,10 +159,23 @@ naturaLparks_black_merge <- raster::union(territories_merge[[1]], natural_parks[
 natural_parks_indigenous_merge_p <- rbind(indigenous_points, naturalparks_points)
 naturaLparks_black_merge_p <- rbind(black_points, naturalparks_points)
 
+###############################################################################
+#################################### NOTE #####################################
+# TO MAKE DISTANCE CALCULATIONS WE USE POINT DATA INSTEAD OF LINE OR POLYGON
+# THIS HAVE SOME ADVANTAGES: IS EASIER TO MERGE POINT GEOMS AND DISTANCE CALCS
+# ARE MADE BETWEEN POINTS, SO WE'RE NOT CREATING NOISE IN ANY WAY.
+###############################################################################
+###############################################################################
 
-#Buffers to asses "treatment zones" of 50 km 
-buffers_territories <- lapply(territories_proj, gBuffer, byid = T, width = 50000) %>% 
-  lapply(., spTransform, CRS=CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+black_points <- territories_proj[[1]] %>% to_points()
+indigenous_points <- territories_proj[[2]] %>% to_points()
+naturalparks_points <- natural_parks[[2]] %>% to_points()
+colombia_municipios_p <- colombia_municipios[[2]] %>% to_points()
+
+
+###############################################################################
+###############################################################################
+
 
 #Mask raster to each shapefile
 res_mask_buffers <- lapply(buffers_territories, function(x){
@@ -108,9 +184,7 @@ res_mask_buffers <- lapply(buffers_territories, function(x){
 
 #Identify cells from buffer and territory
 
-cells_territories <- mapply(function(x, y){
-  cellFromPolygon(res[[1]], y[y@data$OBJECTID_1 %in% x@data$OBJECTID_1,])
-}, x = territories_proj , y = territories)
+cells_territories <- lapply(territories, function(x) cellFromPolygon(res[[1]], x))
 
 cells_territories_buffers <- lapply(buffers_territories, function(x){
   cellFromPolygon(res[[1]], x)
@@ -122,22 +196,29 @@ list_polygons_territories <- lapply(territories_proj, polygon_to_list)
 #Correct list of polygons (for topo problems)
 list_polygons_territories <- list_polygons_territories %>%
   rapply(function(x){
-    gBuffer(x, byid = T, width = 0) %>%
-      gSimplify(., tol = 0.001)
+    geom <- gBuffer(x, byid = T, width = 0) %>%
+      gSimplify(., tol = 0.001) 
+        return(x)
   }, how = "replace")
 
-# territories_proj_corrected <- territories_proj %>%
-#   lapply(function(x){
-#     gBuffer(x, byid = T, width = 0) %>%
-#       gSimplify(., tol = 0.001)
-#   })
+territories_proj_corrected <- territories_proj %>%
+  lapply(function(x){
+    gBuffer(x, byid = T, width = 0) #%>%
+      #gSimplify(., tol = 0.001)
+    })
+
+natural_parks_corrected <- natural_parks[[2]] %>%
+  gBuffer(., byid = T, width = 0) %>%
+  gSimplify(., tol = 0.001)
 
 
 #Clean polygons
-list_polygons_clean_black_all <- lapply(list_polygons_territories[[1]], clean_treatments, polygon = natural_parks_indigenous_merge,
+list_polygons_clean_black_all <- lapply(list_polygons_territories[[1]], 
+                                        clean_treatments, 
+                                        polygon = natural_parks_indigenous_merge,
                                         points_sp = natural_parks_indigenous_merge_p, points_border = colombia_municipios_p,
                                         shape = territories_proj_corrected[[1]])
-saveRDS(list_polygons_clean_black_all, "list_polygons_clean_black_all.rds")
+saveRDS(list_polygons_clean_black_all, "list_polygons_clean_black_all_2016.rds")
 
 list_polygons_clean_indigenous_all <- lapply(list_polygons[[2]], clean_treatments, polygon = naturaLparks_black_merge,
                                              points_sp = naturaLparks_black_merge_p, points_border = colombia_municipios_p,

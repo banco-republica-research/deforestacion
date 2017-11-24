@@ -11,18 +11,17 @@ library(maptools)
 library(magrittr)
 
 # Load functions in R
-setwd("~/deforestacion/")
+setwd(Sys.getenv("ROOT_FOLDER"))
 source("R/process_rasters.R") 
 
 # Set directories
-data <- "Deforestacion/Datos/"
-setwd("~/Dropbox/BANREP/")
+setwd(Sys.getenv("DATA_FOLDER"))
 
 print("LOADING COLOMBIA'S SHAPEFILE")
 
 #Get administrative GIS data
 colombia_municipios <- 
-  readOGR(dsn = paste0(data,"Geografia") , layer="Municipios") %>%
+  readOGR(dsn = "Geografia" , layer="Municipios") %>%
   spTransform(CRS=CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
 
 print("REMOVE NON-CONTINENTAL LAND AND CLEAN GEOMETRY TO SIMPLIFY ANALYSIS

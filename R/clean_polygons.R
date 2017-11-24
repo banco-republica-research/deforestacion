@@ -23,7 +23,7 @@ clean_treatments_border <- function(x, points_border, dist){
 
 #Clean SpatialPoints (from polygons of Natural parks) -remove other treatments and get effective boundaries-
 clean_treatments <- function(x, polygon, points_sp, points_border, shape){
-  print(x$ID)
+  print(x@data[,"ID"])
   if(gIntersects(x, polygon)){
     #Remove inside points
     dif <- gDifference(x, polygon, drop_lower_td = T)
