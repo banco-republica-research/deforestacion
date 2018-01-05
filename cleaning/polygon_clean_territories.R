@@ -59,8 +59,8 @@ territories <- list(black_territories, indigenous_territories) %>%
 
 territories_proj <- lapply(territories, spTransform, CRS=CRS("+init=epsg:3857")) %>% 
   lapply(., function(x){
-    x@data <- mutate(x@data, year = str_replace_all(
-      str_extract(x@data$"RESOLUCION", "[-][1-2][0, 9][0-9][0-9]"), "-", ""))
+    x@data <- dplyr::mutate(x@data, year = stringr::str_replace_all(
+      stringr::str_extract(x@data$"RESOLUCION", "[-][1-2][0, 9][0-9][0-9]"), "-", ""))
     return(x[!as.numeric(x@data$year) > 2016, ])
   })  %>%
   #Remove sections of park outside continental Colombia // remove identifiers [BUG]
@@ -71,7 +71,7 @@ territories_proj <- lapply(territories, spTransform, CRS=CRS("+init=epsg:3857"))
     x$ID <- c(1:length(x))
     return(x)
   })
-
+  
 
 ###############################################################################
 ################ CALCULATE BUFFERS AND CONVERT FROM GEOM TO LIST ##############
@@ -99,32 +99,33 @@ list_polygons_buffers_territories  <- lapply(buffers_territories, polygon_to_lis
 ###############################################################################
 
 
-#Open natural parks shapefile (2 SP object, 1. Projected in meters and 2. Mercator)
-natural_parks <- readOGR(dsn = paste0("UNEP", "/", "WDPA_June2016_COL-shapefile"), 
-                         layer = "WDPA_June2016_COL-shapefile-polygons",
-                         stringsAsFactors = F)
-natural_parks_proj <- spTransform(natural_parks, CRS=CRS("+init=epsg:3857")) #Projection in meters
-
-#Remove NP that are out of continental land and parks after 2012
-natural_parks <- list(natural_parks, natural_parks_proj) %>%
-  lapply(., function(x){
-    x[!(x@data$NAME %in% c("Malpelo Fauna and Flora Sanctuary", 
-                           "Old Providence Mc Bean Lagoon",
-                           "Malpelo",
-                           "Jhonny Cay Regional Park",
-                           "The Peak Regional Park",
-                           "Corales De Profundidad",
-                           "Los Corales Del Rosario Y De San Bernardo",
-                           "Gorgona",
-                           "Acandi Playon Y Playona",
-                           "Uramba Bahia Malaga")) & !x@data$STATUS_YR > 2016 & !x@data$GIS_AREA < 1 , ]
-    
-    
-  }) %>%
-  #Remove sections of park outside continental Colombia
-  mapply(function(x, y){
-    raster::intersect(y, x)
-  }, x = . , y = colombia_municipios)
+  #Open natural parks shapefile (2 SP object, 1. Projected in meters and 2. Mercator)
+  natural_parks <- readOGR(dsn = paste0("UNEP", "/", "WDPA_June2016_COL-shapefile"), 
+                           layer = "WDPA_June2016_COL-shapefile-polygons",
+                           stringsAsFactors = F)
+  natural_parks_proj <- spTransform(natural_parks, CRS=CRS("+init=epsg:3857")) #Projection in meters
+  
+  #Remove NP that are out of continental land and parks after 2016
+  natural_parks <- c(natural_parks, natural_parks_proj) %>%
+    lapply(., function(x){
+      x[!(x@data$NAME %in% c("Malpelo Fauna and Flora Sanctuary", 
+                             "Old Providence Mc Bean Lagoon",
+                             "Malpelo",
+                             "Jhonny Cay Regional Park",
+                             "The Peak Regional Park",
+                             "Corales De Profundidad",
+                             "Los Corales Del Rosario Y De San Bernardo",
+                             "Gorgona",
+                             "Acandi Playon Y Playona",
+                             "Uramba Bahia Malaga")) & !x@data$STATUS_YR > 2016 & !x@data$GIS_AREA < 1 , ]
+      
+      
+    }) %>%
+    #Remove sections of park outside continental Colombia
+    mapply(function(x, y){
+       rgeos::gIntersection(y, x)
+      #raster::intersect(y, x)
+    }, x = . , y = colombia_municipios)
 
 
 ###############################################################################
@@ -148,16 +149,13 @@ territories_union <- lapply(territories_dissolve, gUnaryUnion)
 #Clean natural parks from both (create the union between borth territories)
 territories_merge <- territories_union %>%
   lapply(function(x){
-    gBuffer(x, byid = T, width = 0) %>%
-      gSimplify(., tol = 0.001)
+    gBuffer(x, byid = T, width = 0.001) %>%
+    gSimplify(., tol = 0.001)
   })
 
 #Get union of polygons
-natural_parks_indigenous_merge <- gUnion(territories_merge[[2]], natural_parks[[2]])
-naturaLparks_black_merge <- raster::union(territories_merge[[1]], natural_parks[[2]])
-
-natural_parks_indigenous_merge_p <- rbind(indigenous_points, naturalparks_points)
-naturaLparks_black_merge_p <- rbind(black_points, naturalparks_points)
+natural_parks_indigenous_merge <- rgeos::gUnion(territories_merge[[2]], natural_parks[[2]])
+naturaLparks_black_merge <- rgeos::gUnion(territories_merge[[1]], natural_parks[[2]])
 
 ###############################################################################
 #################################### NOTE #####################################
@@ -171,6 +169,9 @@ black_points <- territories_proj[[1]] %>% to_points()
 indigenous_points <- territories_proj[[2]] %>% to_points()
 naturalparks_points <- natural_parks[[2]] %>% to_points()
 colombia_municipios_p <- colombia_municipios[[2]] %>% to_points()
+
+natural_parks_indigenous_merge_p <- rbind(indigenous_points, naturalparks_points)
+naturaLparks_black_merge_p <- rbind(black_points, naturalparks_points)
 
 
 ###############################################################################
@@ -216,28 +217,23 @@ natural_parks_corrected <- natural_parks[[2]] %>%
 list_polygons_clean_black_all <- lapply(list_polygons_territories[[1]], 
                                         clean_treatments, 
                                         polygon = natural_parks_indigenous_merge,
-                                        points_sp = natural_parks_indigenous_merge_p, points_border = colombia_municipios_p,
+                                        points_sp = natural_parks_indigenous_merge_p, 
+                                        points_border = colombia_municipios_p,
                                         shape = territories_proj_corrected[[1]])
 saveRDS(list_polygons_clean_black_all, "list_polygons_clean_black_all_2016.rds")
 
-list_polygons_clean_indigenous_all <- lapply(list_polygons[[2]], clean_treatments, polygon = naturaLparks_black_merge,
-                                             points_sp = naturaLparks_black_merge_p, points_border = colombia_municipios_p,
+list_polygons_clean_indigenous_all <- lapply(list_polygons_territories[[2]], clean_treatments, 
+                                             polygon = naturaLparks_black_merge,
+                                             points_sp = naturaLparks_black_merge_p, 
+                                             points_border = colombia_municipios_p,
                                              shape = territories_proj_corrected[[2]])
-saveRDS(list_polygons_clean_indigenous_all, "list_polygons_clean_indigenous_all.rds")
+saveRDS(list_polygons_clean_indigenous_all, "list_polygons_clean_indigenous_all_2016.rds")
 
-
-
-
-p <- clean_treatments(list_polygons[[2]][[215]], polygon = naturaLparks_black_merge,
-                      points_sp = naturaLparks_black_merge_p, points_border = colombia_municipios_p,
-                      shape = territories_proj_corrected[[2]])
 
 #Does it work? 
-plot(list_polygons[[2]][[137]])
+plot(list_polygons_territories[[2]][[708]])
 plot(naturaLparks_black_merge, add = T, border = "red")
-plot(list_polygons_clean_indigenous_all[[1]], add = T, col = "blue", pch = 19)
-
-
+plot(list_polygons_clean_indigenous_all[[708]], add = T, col = "blue", pch = 19)
 
 list_clean <- list(list_polygons_clean_black_all, list_polygons_clean_indigenous_all)
 
@@ -252,31 +248,35 @@ list_polygon_clean_proj <- rapply(list_clean, function(x){
 }, how = "replace")
 
 
-calculate_distances_parallel <- function(buffer, points){
-  if(length(points)  > 2 & typeof(points) == "S4"){
-    crop(res_mask_buffers[[1]], buffer) %>%
-      mask(buffer) %>%
-      clusterR(.,distanceFromPoints, args = list(xy = points)) %>%
-      mask(buffer) %>%
-      resample(res_mask_buffers[[2]])
-  } else
-    return(0)
-}
+###############################################################################
+################# CALCLATE DISTANCES TO EFFECTIVE BORDERS #####################
+###############################################################################
 
+###############################################################################
+################################## NOTE #######################################
+# THIS FOLLOWING CODE CALCULATES DISTANCE TO CLEAN BORDERS FOR EACH BLACK AND
+# INDIGENOUS POLYGON. FOR THIS, WE USE THE FUNCTION CALCULATE DISTANCES PARALLEL
+# WHICH ALLOW US TO CALCULATE THESE DISTANCES USING MULTIPLE CORES. WE USE A
+# CROPPED RASTER (res_mask_buffers) TO SIMPLIFY THE CALCULATION.
+###############################################################################
+###############################################################################
 
 beginCluster()
-system.time(distances_black <- mapply(calculate_distances_parallel,
+system.time(distances_black <- mapply(calculate_distances_parallel_territories,
                                       buffer = list_polygons_buffers[[1]], 
-                                      points = list_polygons_clean_proj[[1]]))
+                                      points = list_polygon_clean_proj[[1]]))
 endCluster()
 
 beginCluster()
-system.time(distances_indigenous <- mapply(calculate_distances_parallel,
+system.time(distances_indigenous <- mapply(calculate_distances_parallel_territories,
                                            buffer = list_polygons_buffers[[2]], 
                                            points = list_polygon_clean_proj[[2]]))
 endCluster()
 
-###################################### EXTRACT #################################################
+###############################################################################
+#################### EXTRACT DISTANCE VALUES FROM RASTERS #####################
+###############################################################################
+
 #1. Extract distance as data frame per buffer (list element)
 list_dataframes_black <- pblapply(distances_black, as.data.frame, xy = T, na.rm = T)
 list_dataframes_indigenous <- pblapply(distances_indigenous, as.data.frame, xy = T, na.rm = T)
@@ -286,10 +286,16 @@ list_dataframes_black <- pblapply(list_dataframes_black, function(x){
   x$ID <- row.names(x); x
 })
 
-
 list_dataframes_indigenous <- pblapply(list_dataframes_indigenous, function(x){
   x$ID <- row.names(x); x
 })
+
+###############################################################################
+################################## NOTE #######################################
+# SINCE SOME POLYGONS ARE MISSING (IN THE CLEANING PROCESS NO EFFECTIVE BORDER
+# IS FOUND). WE NEED TO ACCOUNT THEM IN THE LIST AND CREATE A FAKE DATA FRAME 
+# TO IDENTIFY THEM.
+###############################################################################
 
 zero_lenght <- unname(which(sapply(list_dataframes_black, function(x) dim(x)[2] != 4)))
 for(i in zero_lenght){
@@ -316,7 +322,6 @@ list <- list(distance_dataframe_black, distance_dataframe_indigenous)
 names(list) <- c("black", "indigenous")
 
 #5. Export
-setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes/Estrategia 2/")
 lapply(1:length(list), function(i){
-  write.csv(list[[i]], file = str_c("distance_dataframe_", names(list)[[i]], ".csv") , row.names = FALSE)
+  write.csv(list[[i]], file = str_c("Dataframes/Estrategia 2/distance_dataframe_2016_", names(list)[[i]], ".csv") , row.names = FALSE)
 })

@@ -30,24 +30,22 @@ source("R/calculate_distances.R")
 source("cleaning/colombia_continental.R")
 
 # Set directories
-data <- "Deforestacion/Datos/"
-setwd("~/Dropbox/BANREP/")
+setwd(Sys.getenv("DATA_FOLDER"))
 
 #Get deforestation raster for reference: deforestation
-res <- brick(paste0(data, "HansenProcessed/1.4/loss_year_brick_1km.tif"))
-
+res <- brick("HansenProcessed/1.4/loss_year_brick_1km.tif")
 
 ###############################################################################
 ######### READ SHAPEFILES: NATURAL PROTECTED AREAS AND ARRANGE DATA ###########
 ###############################################################################
 
 #Open natural parks shapefile (2 SP object, 1. Projected in meters and 2. Mercator)
-natural_parks <- readOGR(dsn = paste0(data, "UNEP", "/", "WDPA_June2016_COL-shapefile"), 
+natural_parks <- readOGR(dsn = paste0("UNEP", "/", "WDPA_June2016_COL-shapefile"), 
                                       layer = "WDPA_June2016_COL-shapefile-polygons",
                          stringsAsFactors = F)
 natural_parks_proj <- spTransform(natural_parks, CRS=CRS("+init=epsg:3857")) #Projection in meters
 
-#Remove NP that are out of continental land and parks after 2012
+#Remove NP that are out of continental land and parks after 2016
 natural_parks <- list(natural_parks, natural_parks_proj) %>%
   lapply(., function(x){
     x[!(x@data$NAME %in% c("Malpelo Fauna and Flora Sanctuary", 
@@ -60,13 +58,14 @@ natural_parks <- list(natural_parks, natural_parks_proj) %>%
                            "Gorgona",
                            "Acandi Playon Y Playona",
                            "Uramba Bahia Malaga")) & !x@data$STATUS_YR > 2016 & !x@data$GIS_AREA < 1 , ]
-      
-    
-  }) %>%
-  #Remove sections of park outside continental Colombia
-  mapply(function(x, y){
-    raster::intersect(y, x)
-    }, x = . , y = colombia_municipios)
+  }) 
+
+# %>%
+#   #Remove sections of park outside continental Colombia
+#   mapply(function(x, y){
+#     raster::intersect(y, x)
+#     #rgeos::gIntersection(y, x)
+#     }, x = . , y = colombia_municipios)
 
 
 ###############################################################################
@@ -81,17 +80,12 @@ natural_parks <- list(natural_parks, natural_parks_proj) %>%
 natural_parks[[2]]@data$ID <- c(1:dim(natural_parks[[2]])[1])
 natural_parks[[1]]@data$ID <- c(1:dim(natural_parks[[1]])[1])
 
-
-###############################################################################
-###############################################################################
-
-
 ###############################################################################
 ################ CALCULATE BUFFERS AND CONVERT FROM GEOM TO LIST ##############
 ############################# 50 KM / PROJ AND NON_PROJ #######################
 ###############################################################################
 
-#Buffers to asses "treatment zones" of 50 km 
+#Buffers to asssess "treatment zones" of 50 km 
 buffers_natural_parks_proj <- gBuffer(natural_parks[[2]], byid = T, width = 50000)
 buffers_natural_parks <- spTransform(buffers_natural_parks_proj, 
                                      CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
@@ -100,6 +94,16 @@ buffers_natural_parks <- spTransform(buffers_natural_parks_proj,
 #Create a list of individual polygons per natural park
 list_polygons <- polygon_to_list(natural_parks[[2]])
 list_polygons_buffers  <- polygon_to_list(buffers_natural_parks)
+
+
+mapply(function(x,y){
+  if(class(y)[1] == "SpatialPointsDataFrame"){
+    value = gTouches(x, y)
+  } else
+    value = 0
+  return(value)
+} , x = list_polygons, y = list_polygons_clean_all, SIMPLIFY = TRUE)
+
 
 
 ######################## TEST: BUFFERS = POLYGONS ########################
@@ -130,10 +134,10 @@ rm(id1, id2, i)
 # with meters proj. This is set this way to make distance calculations.
 ###############################################################################
 
-black_territories <- readOGR(dsn = paste0(data, "Comunidades"), 
+black_territories <- readOGR(dsn = paste0("Comunidades/"), 
                              layer="Tierras de Comunidades Negras (2015)")
 
-indigenous_territories <- readOGR(dsn = paste0(data, "Resguardos"), 
+indigenous_territories <- readOGR(dsn = paste0("Resguardos/"), 
                                   layer="Resguardos Indigenas (2015)") 
 
 # Make some little changes to geom dataframe 
@@ -206,6 +210,8 @@ natural_parks_corrected <- natural_parks[[2]] %>%
   gBuffer(., byid = T, width = 0) %>%
   gSimplify(., tol = 0.001)
 
+list_polygons <- lapply(list_polygons, gBuffer, width = 0, byid = T)
+
 # Use simplify geometries to create a new geom made of the intersection
 # of the territories
 territories_merge <- raster::union(territories_merge[[1]], territories_merge[[2]])
@@ -225,9 +231,7 @@ list_polygons_clean_all <- lapply(list_polygons,
 
 
 # Save to .rds
-
-setwd("~/Dropbox/BANREP/Backup Data/")
-saveRDS(list_polygons_clean_all, "list_polygons_clean_all_2016.rds")
+saveRDS(list_polygons_clean_all, "rds_data/list_polygons_clean_all_2016.rds")
 
 
 ####### VISUAL VERIFICATION OF THE CLEANING PROCESS - PNN CHIRIBIQUETE ########
@@ -239,7 +243,6 @@ chiribiquete_clean <- clean_treatments(list_polygons[[8]],
 plot(list_polygons[[8]])
 plot(chiribiquete_clean, add = T, col = "red")
 plot(territories_merge_p, add = T, col = "blue")
-
 ###############################################################################
 
 ###############################################################################
