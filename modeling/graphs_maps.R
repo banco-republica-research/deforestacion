@@ -8,6 +8,22 @@ library(xtable)
 library(ggplot2)
 library(ggsn)
 library(stringr)
+library(raster)
+library(parallel)
+
+# Load functions in R
+setwd(Sys.getenv("ROOT_FOLDER"))
+source("R/process_rasters.R")
+source("R/clean_polygons.R")
+source("R/calculate_distances.R")
+source("cleaning/colombia_continental.R")
+
+
+# Set directories
+setwd(Sys.getenv("DATA_FOLDER"))
+
+#Get deforestation raster for reference: deforestation
+res <- brick("HansenProcessed/1.4/loss_year_brick_1km.tif")
 
 # Maps and Facts
 
@@ -114,6 +130,25 @@ ggsave(str_c("total_black_geomarea.pdf"), width=30, height=20, units="cm")
 
 
 #Total deforestation year (total)
+
+#Municipal deforestation (2001 - 2016)  
+beginCluster(detectCores() - 1)
+defo_year_muni <- raster::extract(x = res, 
+                                  y = colombia_municipios_cont, 
+                                  fun = sum, na.rm = T, df = T,
+                                  sp = T)
+
+endCluster()
+
+
+new_names <- str_c("defo", c(2000:2016), sep = "_")
+old_names <- dplyr::select(defo_year_muni@data, starts_with("loss")) %>%
+  colnames()
+
+defo_year_muni_total <- defo_year_muni@data %>%
+  data.table::setnames(., new = new_names, old= old_names)
+
+write.csv(defo_year_muni_total, "deforectacion_municipal_2000_2016.csv")
 
 defo_year_total <- defo %>%
   select(loss_year_brick_1km.2:loss_year_brick_1km.13) %>%
