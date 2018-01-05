@@ -24,7 +24,7 @@ remove_holes <- function(x){
   res <- lapply(1:length(BCp), function(i) slot(BCp[[i]], "Polygons")[!holes[[i]]])
   IDs <- row.names(x)
   
-  if(class(x) == "SpatialPolygons" & class(x) == "SpatialPolygonsDataFrame"){
+  if(class(x) == "SpatialPolygons" | class(x) == "SpatialPolygonsDataFrame"){
     x <- SpatialPolygons(lapply(1:length(res), function(i){
       Polygons(res[[i]], ID=IDs[i])
     }), proj4string = CRS(proj4string(x))
@@ -42,12 +42,8 @@ remove_holes <- function(x){
 ###############################################################################
 
 to_points <- function(x){
-  if( class(x) == "SpatialPolygons")
+  if(class(x) == "SpatialPolygons" | class(x) == "SpatialPolygonsDataFrame")
   x %>%
-    as("SpatialLines") %>%
-    as("SpatialPoints")
-  else if( class(x) == "SpatialPolygonsDataFrame")
-    x %>%
     as("SpatialLines") %>%
     as("SpatialPoints")
   else{
