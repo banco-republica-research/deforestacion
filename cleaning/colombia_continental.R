@@ -29,16 +29,18 @@ print("REMOVE NON-CONTINENTAL LAND AND CLEAN GEOMETRY TO SIMPLIFY ANALYSIS
 
 #Remove islands
 #Remove municipalities that are out of continental land (Malpelo and Providencia)
-colombia_municipios <- 
+colombia_municipios_cont <- 
   colombia_municipios[!(colombia_municipios@data$NOM_MUNICI %in% 
                           c("PROVIDENCIA Y SANTA CATALINA (Santa Isabel)",
-                            "SAN ANDRÉS", "SANTA CATALINA") | colombia_municipios@data$COD_DEPTO == 88) , ] %>%
-  
-  gUnaryUnion(.) %>% remove_holes(.)
+                            "SAN ANDRÉS", "SANTA CATALINA") | colombia_municipios@data$COD_DEPTO == 88) , ] 
 
 #Proyect to meters
-colombia_municipios_proj <- spTransform(colombia_municipios, CRS=CRS("+init=epsg:3857"))
+colombia_municipios_proj <- spTransform(colombia_municipios, CRS=CRS("+init=epsg:3857")) %>%
+  gUnaryUnion(.) %>% remove_holes(.)
+
+colombia_municipios <- colombia_municipios_cont %>% gUnaryUnion(.) %>% remove_holes(.)
 colombia_municipios <- list(colombia_municipios, colombia_municipios_proj)
+
 
 
 
