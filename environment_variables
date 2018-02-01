@@ -28,7 +28,7 @@ if [[ $OSTYPE = darwin* ]]
 then
   for var in '$ROOT_FOLDER' '$PROJ_FOLDER' '$DATA_FOLDER' '$OUTPUT_FOLDER'
   do
-    eval echo "\$var=${var}" | cut -d '$' -f 2 >> /Library/Frameworks/R.framework/Resources/etc/Renviron
+    eval echo "\$var=${var}" | cut -d '$' -f 2 >> deforestacion/.Renviron
   done
 else 
   echo 'Your os is not compatible. Change the .Renvion path'
