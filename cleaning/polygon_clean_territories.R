@@ -266,12 +266,14 @@ system.time(distances_black <- mapply(calculate_distances_parallel_territories,
                                       buffer = list_polygons_buffers[[1]], 
                                       points = list_polygon_clean_proj[[1]]))
 endCluster()
+saveRDS(mask_distance, "rds_data/distances_black_2016.rds")
 
 beginCluster()
 system.time(distances_indigenous <- mapply(calculate_distances_parallel_territories,
                                            buffer = list_polygons_buffers[[2]], 
                                            points = list_polygon_clean_proj[[2]]))
 endCluster()
+saveRDS(mask_distance, "rds_data/distances_indigenous_2016.rds")
 
 ###############################################################################
 #################### EXTRACT DISTANCE VALUES FROM RASTERS #####################
@@ -309,10 +311,10 @@ for(i in zero_lenght){
 
 #3. Append all elements of the list 
 distance_dataframe_black <- do.call(rbind, list_dataframes_black)
-distance_dataframe_black$buffer_id <- rep(names(list_dataframes_black), sapply(list_dataframes_black, nrow)) #identify cells from buffers
+distance_dataframe_black$buffer_id <- rep(c(1:length(list_dataframes_black)), sapply(list_dataframes_black, nrow)) #identify cells from buffers
 
 distance_dataframe_indigenous <- do.call(rbind, list_dataframes_indigenous)
-distance_dataframe_indigenous$buffer_id <- rep(names(list_dataframes_indigenous), sapply(list_dataframes_indigenous, nrow)) #identify cells from buffers
+distance_dataframe_indigenous$buffer_id <- rep(c(1:length(list_dataframes_indigenous)), sapply(list_dataframes_indigenous, nrow)) #identify cells from buffers
 
 #4. Identify treatment and remove NA's (read WARNING)
 distance_dataframe_black$treatment <- ifelse(distance_dataframe_black$ID %in% unlist(cells_territories[[1]]), 1, 0)

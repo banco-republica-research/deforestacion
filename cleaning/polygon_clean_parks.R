@@ -58,14 +58,12 @@ natural_parks <- list(natural_parks, natural_parks_proj) %>%
                            "Gorgona",
                            "Acandi Playon Y Playona",
                            "Uramba Bahia Malaga")) & !x@data$STATUS_YR > 2016 & !x@data$GIS_AREA < 1 , ]
-  }) 
-
-# %>%
-#   #Remove sections of park outside continental Colombia
-#   mapply(function(x, y){
-#     raster::intersect(y, x)
-#     #rgeos::gIntersection(y, x)
-#     }, x = . , y = colombia_municipios)
+  })  %>%
+   #Remove sections of park outside continental Colombia
+   mapply(function(x, y){
+     raster::intersect(y, x)
+     #rgeos::gIntersection(y, x)
+     }, x = . , y = colombia_municipios)
 
 
 ###############################################################################
@@ -94,17 +92,6 @@ buffers_natural_parks <- spTransform(buffers_natural_parks_proj,
 #Create a list of individual polygons per natural park
 list_polygons <- polygon_to_list(natural_parks[[2]])
 list_polygons_buffers  <- polygon_to_list(buffers_natural_parks)
-
-
-mapply(function(x,y){
-  if(class(y)[1] == "SpatialPointsDataFrame"){
-    value = gTouches(x, y)
-  } else
-    value = 0
-  return(value)
-} , x = list_polygons, y = list_polygons_clean_all, SIMPLIFY = TRUE)
-
-
 
 ######################## TEST: BUFFERS = POLYGONS ########################
 id1 <-list()
@@ -291,6 +278,7 @@ system.time(mask_distance <- mapply(calculate_distances_parallel,
                            buffer = list_polygons_buffers, 
                            points = list_polygons_clean_all_proj))
 endCluster()
+saveRDS(mask_distance, "rds_data/distances_parks.rds")
 
 ###############################################################################
 ####################### EXTRACT DISTANCE CALCULATIONS #########################
@@ -311,7 +299,7 @@ for(i in zero_lenght){
 
 #3. Append all elements of the list 
 distance_dataframe <- do.call(rbind, list_dataframes)
-distance_dataframe$buffer_id <- rep(names(list_dataframes), sapply(list_dataframes, nrow)) #identify cells from buffers
+distance_dataframe$buffer_id <- rep(c(1:length(list_dataframes)), sapply(list_dataframes, nrow)) #identify cells from buffers
 
 ######################################## WARNING #############################################
 # The number of cells identified previously using cellsFromPolygon it is lower than the      #
@@ -330,4 +318,4 @@ deforestation_dataframe <- deforestation_dataframe[complete.cases(deforestation_
 
 #Write CSV
 write.csv(distance_dataframe, 
-          paste0(data, "Dataframes", "/", "Estrategia 2", "/", "distancia_dataframe_2016.csv"), row.names = F)
+          paste0("Dataframes", "/", "Estrategia 2", "/", "distance_dataframe_2016.csv"), row.names = F)
