@@ -21,8 +21,15 @@ better enforcement of the protection.
 Running this code requires R (3.4.1) and Python 3.5. Feature extracting, raster processing, 
 and modeling were performed in R. Rasterization of UNODC data on coca crops and illegal
 mining was performed in Python. Some additional analysis in the paper were calculated using 
-Stata (TODO: do this on R).    
+Stata (TODO: do this on R). Also, since we can't upload the complete raw replication databases
+we use Dropbox to store our data.    
 
+## Environment variables [only valid for Unix systems]
+To run this repository in a efficient way and in multiple platforms. We create an `environment_
+variables` script which creates a `.Renviron` local file. R can read this file and we can call
+environment variables from R code. To use this file you can `source` it and specify the path
+to the data folder in your Dropbox folder. The script will create personalized environment 
+variables for each user and make replication easier. 
 
 
 
