@@ -1,7 +1,10 @@
-
-# Create dataframes for regressions: indigenous and afrocolombian reserves
-
-############################
+##############################################################################################
+##############################################################################################
+###                            CREATE DATAFRAMES FOR REGRESSION                            ###
+###     THIS CODE CREATES A YEAR DATAFRAME FOR EACH TERRITORY ACCORDING TO THE NEARER      ###
+###     PIXEL TO THE DISCONTINUITY BORDER CLEANED WITH THE PREVIOUS CODE                   ###
+##############################################################################################
+##############################################################################################
 
 rm(list=ls())
 library(data.table)
@@ -14,45 +17,51 @@ library(rgeos)
 library(tidyr)
 library(rgdal)
 
-# Leonardo
-setwd("C:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/")
-# Ivan 
-# setwd("Dropbox/BANREP/Deforestacion/")
+# Set directories
+setwd(Sys.getenv("DATA_FOLDER"))
 
-maps <-"Datos/" 
-data <-"Datos/Dataframes/"
 
-########################################################
+###############################################################################
+####### READ SHAPEFILES: INDIGENOUS AND BLACK AREAS AND ARRANGE DATA ##########
+###############################################################################
 
-# Pixels and Reserves data  
+black_territories <- readOGR(dsn = "Comunidades", 
+                             layer="Tierras de Comunidades Negras (2015)")
 
-########################################################
+indigenous_territories <- readOGR(dsn = "Resguardos", 
+                                  layer="Resguardos Indigenas (2015)") 
 
-# original territories for descriptives
-indigenous_territories <- readOGR(dsn = paste0(maps,"Resguardos"), layer="Resguardos Indigenas (2015)") 
-black_territories <- readOGR(dsn = paste0(maps,"Comunidades"), layer="Tierras de Comunidades Negras (2015)")
+# Make some little changes to geom dataframe 
+
 colnames(indigenous_territories@data)[8] <- "RESOLUCION"
+territories <- list(black_territories, indigenous_territories) %>%
+  lapply(spTransform, CRS=CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
 
-territories <- 
-  list(indigenous_territories, black_territories) %>%
-  lapply(spTransform, CRS=CRS("+init=epsg:3857")) %>%
+# Project to meters and remove non-continental parts and create ID and year variables 
+
+territories_proj <- lapply(territories, spTransform, CRS=CRS("+init=epsg:3857")) %>% 
   lapply(., function(x){
-  mutate(x@data, year = str_replace_all(str_extract(x@data$"RESOLUCION", "[-][1-2][0, 9][0-9][0-9]"), "-", "") , area = gArea(x, byid = T) / 1e6) }) %>%
-  lapply(.,as.data.frame)
+    x@data <- dplyr::mutate(x@data, year = stringr::str_replace_all(
+      stringr::str_extract(x@data$"RESOLUCION", "[-][1-2][0, 9][0-9][0-9]"), "-", "")) %>%
+      mutate(., ID = c(1:dim(.)[[1]])) %>%
+      mutate(., STATUS_YR = as.numeric(as.character(year))) 
+    return(x[!as.numeric(x@data$year) > 2016, ])
+  }) 
+#Export shapefile metadadata to .dta
 
-write.dta(territories[[1]],"Datos/Resguardos/Resguardos.dta")
-write.dta(territories[[2]],"Datos/Comunidades/Comunidades.dta")
+write.dta(territories_proj[[1]]@data,"Resguardos/Resguardos.dta")
+write.dta(territories_proj[[2]]@data,"Comunidades/Comunidades.dta")
 
 
-# Maps (and get correct year)
-terr <- list()
-terr[[1]] <- readOGR(dsn = paste0(maps,"Resguardos"), layer="Resguardos_clean") 
-terr[[2]] <- readOGR(dsn = paste0(maps,"Comunidades"), layer="Comunidades_clean")
+###############################################################################
+######## LOOP BETWEEN YEARS AND TERRITORY TYPES TO CREATE DATA FRAMES #########
+###############################################################################
+# THIS LOOP CREATES DATAFRAMES (SAVED AS RDS R FILES) FOR EACH YEAR AND TYPE  #
+# OF PROTECTED AREA (INDIGENOUS, BLACK), THIS CODE READS THE DISTANCE FILE    #
+# AND SELECTS FOR EACH YEAR AND TYPE THE NEARER EFFECTIVE FRONTIER. THIS      #
+# WAY ALLOW US TO CORRECT IDENTIFY THE PIXEL AND ITS FEATURES                 #
+###############################################################################
 
-for(i in 1:2){
-  terr[[i]]$STATUS_YR <- as.numeric(levels(terr[[i]]$year))[terr[[i]]$year] 
-  terr[[i]]$ID <- as.numeric(terr[[i]]$OBJECTID_1)-1
-}
 
 # Distance: To any frontier, and only effective frontier
 
@@ -61,8 +70,8 @@ for(d in c(1:2)) {
   
   # Read distance to Indigenous and black reserves 
   dist <- list()
-  dist[[1]] <- fread(paste0(data,"Estrategia ",d,"/distance_dataframe_indigenous.csv"))
-  dist[[2]] <- fread(paste0(data,"Estrategia ",d,"/distance_dataframe_black.csv"))
+  dist[[1]] <- fread(paste0("Dataframes/","Estrategia ",d,"/distance_dataframe_black.csv"))
+  dist[[2]] <- fread(paste0("Dataframes/","Estrategia ",d,"/distance_dataframe_indigenous.csv"))
   
   # Merge and process by terr type
   
@@ -72,7 +81,7 @@ for(d in c(1:2)) {
     
     print(paste0("territorio ",i))
     # Merge  
-    terr_b <- terr[[i]][vars]
+    terr_b <- territories_proj[[i]][vars]
     dist_b <- dist[[i]]
     dist_b$buffer_id <- as.numeric(dist_b$buffer_id) 
     dist_b <- merge(dist_b, terr_b, by.x="buffer_id", by.y="ID")
@@ -80,24 +89,26 @@ for(d in c(1:2)) {
     
     # pixel by year (stock)  
     
-    for(y in 2000:2012) {
+    for(y in 2000:2016) {
       
       print(paste0("year ",y))
       eval(parse(text=paste("dist_temp <- dist_b[dist_b$STATUS_YR < ",y,",]", sep="")))
       setorder(dist_temp, ID,-treatment,dist)
       dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
-      saveRDS(dist_temp, file =  paste0(data,"Estrategia ",d,"/dist_terr",i,"_",y,".rds"))
+      saveRDS(dist_temp, file =  paste0("Dataframes/","Estrategia ",d,"/dist_terr",i,"_",y,".rds"))
       print(dim(dist_temp))
       
     }  
   }
 }
 
-########################################################
+###############################################################################
+########### LOOP BETWEEN YEARS AND PARK TYPES TO CREATE DATA FRAMES ###########
+###############################################################################
+# AS THE PREVIOUS LOOP, THIS LOOP DO THE SAME BUT FOR LOGITUDINAL DATA TO RUN #
+# PANEL MODELS FOR EACH TYPE OF PROTECTED AREA                                #
+###############################################################################
 
-# Panel: 2001-2012
-
-########################################################
 
 for(d in c(1:2)) { 
   print(paste0("distance ",d))
@@ -106,9 +117,9 @@ for(d in c(1:2)) {
     
     print(paste0("territorio ",i))
     dist_panel <- list()
-    for(y in 2001:2012) {
+    for(y in 2001:2016) {
       print(paste0("year ",y))
-      dist_temp <- readRDS(paste0(data,"Estrategia ",d,"/dist_terr",i,"_",y,".rds"))
+      dist_temp <- readRDS(paste0("Dataframes/","Estrategia ",d,"/dist_terr",i,"_",y,".rds"))
       dist_temp <- dist_temp[dist_temp$dist<=20000,]
       dist_temp$year <- y
       dist_panel[[y-2000]] <- dist_temp
@@ -121,14 +132,14 @@ for(d in c(1:2)) {
     dist_panel$treatment[is.na(dist_panel$treatment)] <- 0 
 
     dist_panel$desig_first <- dist_panel$STATUS_YR
-    dist_panel$desig_first[is.na(dist_panel$desig_first)] <- 2012 
+    dist_panel$desig_first[is.na(dist_panel$desig_first)] <- 2016 
     dist_panel <- dist_panel %>% group_by(ID) %>% mutate(.,desig_first = min(desig_first))
     
-    desig_2012 <- dist_panel[dist_panel$year==2012,c("ID","buffer_id","dist")]
+    desig_2012 <- dist_panel[dist_panel$year==2016,c("ID","buffer_id","dist")]
     names(desig_2012) <- c("ID","buffer_id_2012","dist_2012")
     dist_panel <- merge(dist_panel, desig_2012, all.x=TRUE, all.y=TRUE, by="ID")
     print(dim(dist_panel))
-    saveRDS(dist_panel, file =  paste0(data,"Estrategia ",d,"/dist_panel_terr",i,".rds"))
+    saveRDS(dist_panel, file =  paste0("Dataframes/","Estrategia ",d,"/dist_panel_terr",i,".rds"))
 
     }
 }

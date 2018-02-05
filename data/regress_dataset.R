@@ -1,7 +1,10 @@
-
-# Create dataframes for regressions
-
-############################
+##############################################################################################
+##############################################################################################
+###                            CREATE DATAFRAMES FOR REGRESSION                            ###
+###     THIS CODE CREATES A YEAR DATAFRAME FOR EACH TERRITORY ACCORDING TO THE NEARER      ###
+###     PIXEL TO THE DISCONTINUITY BORDER CLEANED WITH THE PREVIOUS CODE                   ###
+##############################################################################################
+##############################################################################################
 
 rm(list=ls())
 library(data.table)
@@ -13,60 +16,86 @@ library(dplyr)
 library(magrittr)
 library(foreign)
 
-# Leonardo
-setwd("C:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/")
-# Ivan 
-# setwd("~/Dropbox/BANREP/Deforestacion/")
+# Load functions in R
+setwd("~/deforestacion/")
 
-parks <-"Datos/UNEP/"
-data <-"Datos/Dataframes/"
+# Set directories
+setwd(Sys.getenv("DATA_FOLDER"))
 
-########################################################
 
-# Pixels and parks data  
+###############################################################################
+######### READ SHAPEFILES: NATURAL PROTECTED AREAS AND ARRANGE DATA ###########
+###############################################################################
 
-########################################################
+#Open natural parks shapefile (2 SP object, 1. Projected in meters and 2. Mercator)
+natural_parks <- readOGR(dsn = paste0("UNEP", "/", "WDPA_June2016_COL-shapefile"), 
+                         layer = "WDPA_June2016_COL-shapefile-polygons",
+                         stringsAsFactors = F)
+natural_parks_proj <- spTransform(natural_parks, CRS=CRS("+init=epsg:3857")) #Projection in meters
 
-# original parks for descriptives
-natural_parks <- readOGR(dsn = paste0(parks, "WDPA_June2016_COL-shapefile"), layer = "WDPA_June2016_COL-shapefile-polygons")
-natural_parks <- spTransform(natural_parks, CRS=CRS("+init=epsg:3857")) #Projection in meters
-natural_parks$area <- gArea(natural_parks, byid = T) / 1e6
-natural_parks <- as.data.frame(natural_parks) %>%
-.[!(.$NAME %in% c("Malpelo Fauna and Flora Sanctuary", 
-                       "Old Providence Mc Bean Lagoon",
-                       "Malpelo",
-                       "Jhonny Cay Regional Park",
-                       "The Peak Regional Park",
-                       "Corales De Profundidad",
-                       "Los Corales Del Rosario Y De San Bernardo",
-                       "Gorgona",
-                       "Acandi Playon Y Playona",
-                       "Uramba Bahia Malaga")), ]
-write.dta(natural_parks,paste0(parks,"natural_parks.dta"))
+#Remove NP that are out of continental land and parks after 2016
+natural_parks <- list(natural_parks, natural_parks_proj) %>%
+  lapply(., function(x){
+    x[!(x@data$NAME %in% c("Malpelo Fauna and Flora Sanctuary", 
+                           "Old Providence Mc Bean Lagoon",
+                           "Malpelo",
+                           "Jhonny Cay Regional Park",
+                           "The Peak Regional Park",
+                           "Corales De Profundidad",
+                           "Los Corales Del Rosario Y De San Bernardo",
+                           "Gorgona",
+                           "Acandi Playon Y Playona",
+                           "Uramba Bahia Malaga")) & !x@data$STATUS_YR > 2016 & !x@data$GIS_AREA < 1 , ]
+  })
 
-# Modified parks
-parks <- readOGR(dsn = paste0(parks, "WDPA_Modificado"), layer = "WDPA_clean")
+
+###############################################################################
+#################################### NOTE #####################################
+# 1. FOR IDENTIFICATION PURPOSES, AN ID VARIABLE IS CREATED TO EACH POLYGON
+# USING THE ROW.NUMBER.
+# 2. THIS ID IS PASSED ALSO TO THE LIST ID - THAT WAY WE CAN IDENTIFY TO WHICH
+# PARK THE DATA IS RELATED TO.
+###############################################################################
+###############################################################################
+
+natural_parks[[2]]@data$ID <- c(1:dim(natural_parks[[2]])[1])
+natural_parks[[1]]@data$ID <- c(1:dim(natural_parks[[1]])[1])
+
+# Write metadata to dta (run panels in Stata)
+
+write.dta(natural_parks[[1]]@data, paste0("UNEP", "/", "natural_parks.dta"))
 
 vars <- c("ID","DESIG","STATUS_YR","GOV_TYPE")
-parks_b <- parks[vars]
-summary(parks_b)
-desig <- table(parks_b$DESIG)
-parks_b$DESIG2 <- mapvalues(parks_b$DESIG, levels(parks_b$DESIG), c(1:15))
-table(parks_b$DESIG,parks_b$DESIG2)
+parks_b <- natural_parks[[1]]@data[vars] %>%
+  mutate(DESIG2 = mapvalues(.$DESIG, levels(as.factor(.$DESIG)), c(1:15))) %>%
+  mutate(DESIG2 = as.factor(DESIG2))
+
+# desig <- table(parks_b$DESIG)
+# summary(parks_b)
+# table(parks_b$DESIG,parks_b$DESIG2)
 
   
-# pixel by year (stock) and type of park (and also for groups of park types)
+# Pixel by year (stock) and type of park (and also for groups of park types)
 all <- c(1:15)
 national <- c(2,5,7,8,11,12,13,14,15)
 regional <- c(1,3,4,6,10)
 private <- 9
 areas <- c("all","national","regional")
 
-# Distance: To any frontier, and only effective frontier
 
-for(d in c(1:2)) { 
+###############################################################################
+########### LOOP BETWEEN YEARS AND PARK TYPES TO CREATE DATA FRAMES ###########
+###############################################################################
+# THIS LOOP CREATES DATAFRAMES (SAVED AS RDS R FILES) FOR EACH YEAR AND TYPE  #
+# OF NATURAL PARK (REGIONAL, NATIONAL, OTHERS), THIS CODE READS THE DISTANCE  #
+# FILE AND SELECTS FOR EACH YEAR AND TYPE THE NEARER EFFECTIVE FRONTIER. THIS #
+# WAY ALLOW US TO CORRECT IDENTIFY THE PIXEL AND ITS FEATURES                 #
+###############################################################################
+
+for(d in c(1:2)){ 
   print(paste0("distance ",d))
-  dist <- fread(paste0(paste0(data, "Estrategia ",d,"/distancia_dataframe.csv")))
+  dist <- fread(paste0(paste0("Dataframes/", "Estrategia ",d, "/distance_dataframe.csv"))) %>%
+    mutate(buffer_id = as.factor(buffer_id))
   names(dist)[names(dist) == "layer"] = "dist" 
   
   # Merge 
@@ -75,7 +104,7 @@ for(d in c(1:2)) {
   dist_b$year <- as.numeric(dist_b$STATUS_YR)
   dim(dist_b)
 
-  for(y in 2000:2012) {
+  for(y in 2000:2016) {
     
     print(paste0("year ",y))
     dist_yl <- list()
@@ -91,7 +120,7 @@ for(d in c(1:2)) {
       dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
       dist_yl[[i]] <- dist_temp
     }
-    saveRDS(dist_yl, file =  paste0(data,"Estrategia ",d,"/dist_",y,".rds"))
+    saveRDS(dist_yl, file =  paste0("Dataframes/", "Estrategia ",d,"/dist_",y,".rds"))
 
     # By type of area 
     for(a in areas) {
@@ -100,17 +129,18 @@ for(d in c(1:2)) {
       dist_temp <- do.call(rbind, dist_temp)
       setorder(dist_temp, ID,-treatment,dist)
       dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
-      saveRDS(dist_temp, file =  paste0(data, "Estrategia ",d,"/dist_",y,"_",a,".rds"))
+      saveRDS(dist_temp, file =  paste0("Dataframes/", "Estrategia ",d,"/dist_",y,"_",a,".rds"))
     }
   }
 }
 
 
-########################################################
-
-# Panel: 2001-2012
-
-########################################################
+###############################################################################
+########### LOOP BETWEEN YEARS AND PARK TYPES TO CREATE DATA FRAMES ###########
+###############################################################################
+# AS THE PREVIOUS LOOP, THIS LOOP DO THE SAME BUT FOR LOGITUDINAL DATA TO RUN #
+# PANEL MODELS FOR EACH TYPE OF PROTECTED AREA                                #
+###############################################################################
 
 # for all, national, regional
 
@@ -122,9 +152,9 @@ for(d in c(1:2)) {
   for(a in areas) {
   print(paste0("area ",a))
   dist_panel <- list()
-  for(y in 2001:2012) {
+  for(y in 2001:2016) {
     print(paste0("year ",y))
-    dist_temp <- readRDS(paste0(data,"Estrategia ",d,"/dist_",y,"_",a,".rds"))
+    dist_temp <- readRDS(paste0("Dataframes/","Estrategia ",d,"/dist_",y,"_",a,".rds"))
     dist_temp <- dist_temp[dist_temp$dist<=20000,]
     dist_temp$year <- y
     dist_panel[[y-2000]] <- dist_temp
@@ -151,7 +181,7 @@ for(d in c(1:2)) {
   dist_panel <- merge(dist_panel, desig_2012, all.x=TRUE, all.y=TRUE, by="ID")
 
   print(dim(dist_panel))
-  saveRDS(dist_panel, file =  paste0(data,"Estrategia ",d,"/dist_panel_",a,".rds"))
+  saveRDS(dist_panel, file =  paste0("Dataframes/","Estrategia ",d,"/dist_panel_",a,".rds"))
   }
 }
 
@@ -164,9 +194,9 @@ for(d in c(1:2)) {
   for(a in 1:15) {
     print(paste0("area ",a))
     dist_panel <- list()
-    for(y in 2001:2012) {
+    for(y in 2001:2016) {
       print(paste0("year ",y))
-      dist_temp <- readRDS(paste0(data,"Estrategia ",d,"/dist_",y,".rds"))[[a]]
+      dist_temp <- readRDS(paste0("Dataframes/","Estrategia ",d,"/dist_",y,".rds"))[[a]]
       if ((dim(dist_temp)[1]) > 0){
         dist_temp <- dist_temp[dist_temp$dist<=20000,]
         dist_temp$year <- y
@@ -190,7 +220,7 @@ for(d in c(1:2)) {
       names(desig_2012) <- c("ID","buffer_id_2012","dist_2012","DESIG2_2012")
       dist_panel <- merge(dist_panel, desig_2012, all.x=TRUE, all.y=TRUE, by="ID")
       print(dim(dist_panel))
-      saveRDS(dist_panel, file =  paste0(data,"Estrategia ",d,"/dist_panel_",a,".rds"))
+      saveRDS(dist_panel, file =  paste0("Dataframes/","Estrategia ",d,"/dist_panel_",a,".rds"))
     }
   }
 }
