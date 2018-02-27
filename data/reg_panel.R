@@ -8,7 +8,8 @@ library(data.table)
 library(foreign)
 
 # mac
-setwd("C:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/")
+#setwd("C:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/")
+setwd("/Users/leonardobonilla/Dropbox/CEER v2/Papers/Deforestacion/")
 # Ivan 
 # setwd("Dropbox/BANREP/Deforestacion/")
 
@@ -16,11 +17,11 @@ data <-"Datos/Dataframes/"
 
 ########################################################
 
-# Datasets: 2001-2012  
+# Datasets: 2001-2014  
 
 ########################################################
 
-# Deforestation (2001-2012) 
+# Deforestation (2001-2014) 
 defo <- fread(paste0(data,"dataframe_deforestacion.csv"))
 defo <- defo[, (c("loss_year_brick_1km.1","loss_year_brick_1km.14")) := NULL]
 
