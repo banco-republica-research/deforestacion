@@ -8,8 +8,8 @@ library(data.table)
 library(foreign)
 
 # mac
-#setwd("C:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/")
-setwd("/Users/leonardobonilla/Dropbox/CEER v2/Papers/Deforestacion/")
+setwd("D:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/")
+# setwd("/Users/leonardobonilla/Dropbox/CEER v2/Papers/Deforestacion/")
 # Ivan 
 # setwd("Dropbox/BANREP/Deforestacion/")
 

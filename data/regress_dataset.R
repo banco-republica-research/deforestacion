@@ -17,11 +17,10 @@ library(magrittr)
 library(foreign)
 
 # Load functions in R
-setwd("~/deforestacion/")
+# setwd("~/deforestacion/")
+# setwd(Sys.getenv("DATA_FOLDER"))
 
-# Set directories
-setwd(Sys.getenv("DATA_FOLDER"))
-
+setwd("D:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
 
 ###############################################################################
 ######### READ SHAPEFILES: NATURAL PROTECTED AREAS AND ARRANGE DATA ###########
@@ -150,6 +149,10 @@ for(d in c(1:2)) {
   print(paste0("distance ",d))
   
   for(a in areas) {
+
+  a <- "national"
+  d <- 2 
+    
   print(paste0("area ",a))
   dist_panel <- list()
   for(y in 2001:2016) {
@@ -164,7 +167,7 @@ for(d in c(1:2)) {
   # Balanced panel: 
   # Borrar ID = 0 
   # treatment = 0 if park did not exit in year 
-  # desig_2012 = Time-invariant type of park (Use the 2012 park)
+  # desig_2016 = Time-invariant type of park (Use the 2016 park)
   # Desig_first = first year of desig if multiple 
   
   dist_panel <- dist_panel[dist_panel$ID!=0, ]
@@ -173,12 +176,12 @@ for(d in c(1:2)) {
   dist_panel$treatment[is.na(dist_panel$treatment)] <- 0 
 
   dist_panel$desig_first <- dist_panel$STATUS_YR
-  dist_panel$desig_first[is.na(dist_panel$desig_first)] <- 2012 
+  dist_panel$desig_first[is.na(dist_panel$desig_first)] <- 2016 
   dist_panel <- dist_panel %>% group_by(ID) %>% mutate(.,desig_first = min(desig_first))
 
-  desig_2012 <- dist_panel[dist_panel$year==2012,c("ID","buffer_id","dist","DESIG2")]
-  names(desig_2012) <- c("ID","buffer_id_2012","dist_2012","DESIG2_2012")
-  dist_panel <- merge(dist_panel, desig_2012, all.x=TRUE, all.y=TRUE, by="ID")
+  desig_2016 <- dist_panel[dist_panel$year==2016,c("ID","buffer_id","dist","DESIG2")]
+  names(desig_2016) <- c("ID","buffer_id_2016","dist_2016","DESIG2_2016")
+  dist_panel <- merge(dist_panel, desig_2016, all.x=TRUE, all.y=TRUE, by="ID")
 
   print(dim(dist_panel))
   saveRDS(dist_panel, file =  paste0("Dataframes/","Estrategia ",d,"/dist_panel_",a,".rds"))
@@ -213,17 +216,23 @@ for(d in c(1:2)) {
       dist_panel$treatment[is.na(dist_panel$treatment)] <- 0 
 
       dist_panel$desig_first <- dist_panel$STATUS_YR
-      dist_panel$desig_first[is.na(dist_panel$desig_first)] <- 2012 
+      dist_panel$desig_first[is.na(dist_panel$desig_first)] <- 2016 
       dist_panel <- dist_panel %>% group_by(ID) %>% mutate(.,desig_first = min(desig_first))
       
-      desig_2012 <- dist_panel[dist_panel$year==2012,c("ID","buffer_id","dist","DESIG2")]
-      names(desig_2012) <- c("ID","buffer_id_2012","dist_2012","DESIG2_2012")
-      dist_panel <- merge(dist_panel, desig_2012, all.x=TRUE, all.y=TRUE, by="ID")
+      desig_2016 <- dist_panel[dist_panel$year==2016,c("ID","buffer_id","dist","DESIG2")]
+      names(desig_2016) <- c("ID","buffer_id_2016","dist_2016","DESIG2_2016")
+      dist_panel <- merge(dist_panel, desig_2016, all.x=TRUE, all.y=TRUE, by="ID")
       print(dim(dist_panel))
       saveRDS(dist_panel, file =  paste0("Dataframes/","Estrategia ",d,"/dist_panel_",a,".rds"))
     }
   }
 }
+
+
+
+
+
+
 
 
 
