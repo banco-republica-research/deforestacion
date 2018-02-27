@@ -1,8 +1,12 @@
+#Untrack R hidden files
 .Rproj.user
 .Rhistory
 .RData
 .Ruserdata
 .Renviron
+.Rapp.history
+
+#Untrack Python hidden files and text data
 *.pyc
 *.txt
-.Rapp.history
+

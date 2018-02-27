@@ -322,14 +322,14 @@ l <- lapply(defo_dist_all, function(x){
 
 
 #Individual graphs for all territories (natural parks + territories)
-setwd("~/Dropbox/BANREP/Deforestacion/Results/RD/Graphs/")
+setwd("~")
 mapply(function(x, type){
   g <- ggplot(x, aes(y = (meanbin), x = as.numeric(bins), colour = as.factor(treatment))) 
   g <- g + stat_smooth(method = "auto") 
   g <- g + geom_point(colour = "black", size = 1)
   g <- g + labs(x = "Distancia (Km.)", y = "Deforestación (Ha x Km2)")
-  g <- g + scale_x_continuous(limits = c(-20, 20))
-  g <- g + scale_y_continuous(limits = c(0, 0.3))
+  #g <- g + scale_x_continuous(limits = c(-20, 20))
+  #g <- g + scale_y_continuous(limits = c(0, 0.3))
   g <- g + ggtitle(str_c("Discontinuidad\n", "para", type, sep = " "))
   g <- g + guides(colour = FALSE)
   g <- g + theme_bw()

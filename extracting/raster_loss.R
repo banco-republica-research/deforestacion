@@ -10,17 +10,16 @@ library(magrittr)
 library(rgdal)
 
 #Load functions in R
-setwd("~/GitHub/deforestacion/")
+setwd(Sys.getenv("ROOT_FOLDER"))
 source("R/process_rasters.R") 
 
-data <- "Deforestacion/Datos/"
-
-setwd("~/Dropbox/BANREP/")
+# Set directories
+setwd(Sys.getenv("DATA_FOLDER"))
 
 
 #Get administrative GIS data
 colombia_municipios <- 
-  readOGR(dsn = paste0(data, "Geografia"), layer="Municipios") %>%
+  readOGR(dsn = paste0("Geografia"), layer="Municipios") %>%
   spTransform(CRS=CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
 
 # Open .tif files as a raster (the raster package allow to read these files in the disk and not in the memory, this improves the efficiency of functions in R)
@@ -30,11 +29,11 @@ rasters_extent <- extent(list_raster[[1]]) #We need to put all rasters into the 
 rasters_lights <- processing_rasters(list_raster, rasters_extent, colombia_municipios)
 
 #Deforestation data (only lossyear)
-files <- list.files(paste0(data, "hansen_raw"), full.names = TRUE) %>%
+files <- list.files(paste0("hansen_raw"), full.names = TRUE) %>%
   str_detect("lossyear")
 
 #Open rasters using raster package and crop to Colombia shape 
-loss_year <- lapply(list.files(paste0(data, "hansen_raw"), full.names = TRUE)[files], raster) %>%
+loss_year <- lapply(list.files(paste0("hansen_raw"), full.names = TRUE)[files], raster) %>%
   lapply(crop, colombia_municipios) 
 
 #Mosaic images to create a RasterLayer
@@ -45,7 +44,7 @@ system.time(loss_year <- do.call(mosaic, loss_year)) # (15 min)
 
 #If mem is full at this time, it is best to save the mosaic as an individual .tif and to erase all temporary files 
 ######################################################################################################
-writeRaster(loss_year, filename = paste0(data, "HansenProcessed/1.4/loss_year_mosaic_30m.tif"), 
+writeRaster(loss_year, filename = paste0("HansenProcessed/1.4/loss_year_mosaic_30m.tif"), 
             format = "GTiff", 
             progress = "text") 
 removeTmpFiles(0.1)                                                                                 
@@ -62,7 +61,7 @@ loss_year <- raster(paste0(data, "HansenProcessed/1.4/loss_year_mosaic_30m.tif")
 # is done in the swap memory, hence be cautious of free disk space . 
 
 system.time(
-loss_year_brick <- layerize(loss_year, filename = paste0(data, "HansenProcessed/1.4/loss_year_brick.tif"),
+loss_year_brick <- layerize(loss_year, filename = paste0("HansenProcessed/1.4/loss_year_brick.tif"),
                             format = "GTiff",
                             options = "INTERLEAVE=BAND", 
                             progress = "text"))
@@ -70,7 +69,7 @@ loss_year_brick <- layerize(loss_year, filename = paste0(data, "HansenProcessed/
 #Now, we want to create a grid of 1 km2 (using the night light data as reference grid)
 fact <- round(dim(loss_year_brick)[1:2] / dim(rasters_lights[[1]])[1:2]) 
 
-agg <- aggregate(loss_year_brick, fact, filename = paste0(data, "HansenProcessed/1.4/loss_year_brick_agg.tif"),
+agg <- aggregate(loss_year_brick, fact, filename = paste0("HansenProcessed/1.4/loss_year_brick_agg.tif"),
                  format = "GTiff",
                  options = "INTERLEAVE = BAND",
                  progress = "text" ) #Proportion of deforestation in the 1 km grid 
@@ -78,7 +77,7 @@ agg <- aggregate(loss_year_brick, fact, filename = paste0(data, "HansenProcessed
 agg_mask <- mask(agg, colombia_municipios)
 rasters_lights <- setExtent(rasters_lights, agg_mask)
 
-res <- resample(agg_mask, rasters_lights, filename = paste0(data, "HansenProcessed/1.4/loss_year_brick_1km.tif"),
+res <- resample(agg_mask, rasters_lights, filename = paste0("HansenProcessed/1.4/loss_year_brick_1km.tif"),
                 format = "GTiff",
                 options = "INTERLEAVE=BAND", 
                 progress = "text", overwrite = T)
@@ -87,6 +86,10 @@ res <- resample(agg_mask, rasters_lights, filename = paste0(data, "HansenProcess
 identical(coordinates(res), coordinates(rasters_lights))
 
 #Extract data to dataframe (csv)
+res_df <- as.data.frame(res, na.rm = T, xy = T)
+res_df$ID <- row.names(res_df)
+write.csv(res_df, "Dataframes/dataframe_deforestacion.csv")
+
 
 
 

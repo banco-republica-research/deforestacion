@@ -1,4 +1,12 @@
-# Run RD regressions (For parks and territories)
+##############################################################################################
+##############################################################################################
+###                          RUN REGRESSION DISCONTINUITY MODELS                           ###
+###     THIS CODE WILL READ THE DISTANCE AND DEFORESTATION DATA TO RUN RD MODELS           ###
+###     HERE WE WILL RUN THE MODELS FOR BOTH STRATEGIES (1: REMOVE CONTINENTAL BORDERS AND ###
+###             2. REMOVE ALL COTREATMENT BORDERS AND USE EFFECTIVE BORDERS).              ###
+##############################################################################################
+##############################################################################################
+
 rm(list=ls())
 library(plyr)
 library(dplyr)
@@ -8,28 +16,26 @@ library(rdd)
 library(stringr)
 library(stargazer)
 library(foreign)
-library(rddtools)
 library(ggplot2)
 library(magrittr)
 library(foreign)
 library(stringr)
 
-#Load functions in R
 
-data <- "Deforestacion/Datos/"
-setwd("~/Dropbox/BANREP/")
+# Set directories
+setwd(Sys.getenv("DATA_FOLDER"))
 
 ########################################## STRATEGY 2: EFFECTIVE BORDERS ###############################################
 
 #Import datasets (covariates)
-defo <- read.csv(paste0(data, "Dataframes", "/","dataframe_deforestacion.csv")) %>% dplyr::select(-X)
-cov <- read.csv(paste0(data, "Dataframes", "/","geographic_covariates.csv"))
-treecover <- read.csv(paste0(data, "Dataframes", "/", "treecover_2000.csv")) %>% dplyr::select(ID, treecover_agg)
-simci_coca <- read.csv(paste0(data, "Dataframes", "/", "coca_simci_extract.csv")) %>% dplyr::select(contains("coca"), ID)
-simci_mining <- read.csv(paste0(data, "Dataframes", "/", "illegal_mining_simci_extract.csv")) %>% dplyr::select(contains("EVOA"), ID)
+defo <- read.csv(paste0("Dataframes", "/","dataframe_deforestacion.csv")) %>% dplyr::select(-X)
+cov <- read.csv(paste0("Dataframes", "/","geographic_covariates.csv"))
+treecover <- read.csv(paste0("Dataframes", "/", "treecover_2000.csv")) %>% dplyr::select(ID, treecover_agg)
+simci_coca <- read.csv(paste0( "Dataframes", "/", "coca_simci_extract.csv")) %>% dplyr::select(contains("coca"), ID)
+simci_mining <- read.csv(paste0("Dataframes", "/", "illegal_mining_simci_extract.csv")) %>% dplyr::select(contains("EVOA"), ID)
 
 
-list_files <- list.files(paste0(data, "Dataframes", "/", "Estrategia 2"), full.names = TRUE)
+list_files <- list.files(paste0("Dataframes", "/", "Estrategia 2"), full.names = TRUE)
 rds_2000 <- list_files[str_detect(list_files, "dist_2000")][c(1:3)] %>%
   lapply(readRDS) %>%
   lapply(data.frame)
@@ -40,8 +46,8 @@ territories_2000 <- list_files[str_detect(list_files, "_2000")] %>%
   lapply(data.frame)
 
 #Aggregate deforestation (2001 - 2012) and Coca crops (2001 - 2012)
-defo$loss_sum <- rowSums(defo[, c(4:length(names(defo)) - 1 )])
-loss_sum <- dplyr::select(defo, c(ID, loss_sum)) %>% mutate(loss_sum = loss_sum / 12)
+defo$loss_sum <- rowSums(defo[, c(5:length(names(defo)) - 1 )])
+loss_sum <- dplyr::select(defo, c(ID, loss_sum)) %>% mutate(loss_sum = loss_sum / 16)
 simci_coca$coca_agg <- rowMeans(simci_coca[, c(1:16)], na.rm = T)
 
 
@@ -76,7 +82,7 @@ rd_robust_fixed_five_2 <-  lapply(list_df, function(x){
   rdrobust(
     y = x$loss_sum,
     x = x$dist_disc,
-    covs = cbind(as.factor(as.character(x$buffer_id))),
+    #covs = cbind(as.factor(as.character(x$buffer_id))),
     vce = "nn",
     h = 5,
     nnmatch = 8,

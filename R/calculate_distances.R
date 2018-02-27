@@ -8,7 +8,7 @@
 # DEPENDING ON THE TYPE: 1: BLACK, 2: INDIGENOUS
 ###############################################################################
 
-
+  
 
 calculate_distances_parallel <- function(buffer, points){
   if(length(points)  > 2 & typeof(points) == "S4"){
