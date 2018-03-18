@@ -15,12 +15,12 @@ library(plyr)
 library(dplyr)
 library(magrittr)
 library(foreign)
+library(rlist)
 
 # Load functions in R
-# setwd("~/deforestacion/")
-# setwd(Sys.getenv("DATA_FOLDER"))
+setwd("~/deforestacion/")
+setwd(Sys.getenv("DATA_FOLDER"))
 
-setwd("D:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
 
 ###############################################################################
 ######### READ SHAPEFILES: NATURAL PROTECTED AREAS AND ARRANGE DATA ###########
@@ -66,9 +66,7 @@ write.dta(natural_parks[[1]]@data, paste0("UNEP", "/", "natural_parks.dta"))
 
 vars <- c("ID","DESIG","STATUS_YR","GOV_TYPE")
 parks_b <- natural_parks[[1]]@data[vars] %>%
-  mutate(DESIG2 = mapvalues(.$DESIG, levels(as.factor(.$DESIG)), c(1:15))) %>%
-  mutate(DESIG2 = as.factor(DESIG2))
-
+  mutate(DESIG2 = mapvalues(.$DESIG, levels(as.factor(.$DESIG)), c(1:15)))
 # desig <- table(parks_b$DESIG)
 # summary(parks_b)
 # table(parks_b$DESIG,parks_b$DESIG2)
@@ -79,8 +77,6 @@ all <- c(1:15)
 national <- c(2,5,7,8,11,12,13,14,15)
 regional <- c(1,3,4,6,10)
 private <- 9
-areas <- c("all","national","regional")
-
 
 ###############################################################################
 ########### LOOP BETWEEN YEARS AND PARK TYPES TO CREATE DATA FRAMES ###########
@@ -91,48 +87,91 @@ areas <- c("all","national","regional")
 # WAY ALLOW US TO CORRECT IDENTIFY THE PIXEL AND ITS FEATURES                 #
 ###############################################################################
 
-for(d in c(1:2)){ 
-  print(paste0("distance ",d))
-  dist <- fread(paste0(paste0("Dataframes/", "Estrategia ",d, "/distance_dataframe.csv"))) %>%
-    mutate(buffer_id = as.factor(buffer_id))
-  names(dist)[names(dist) == "layer"] = "dist" 
-  
-  # Merge 
-  dist_b <- merge(dist, parks_b, by.x="buffer_id", by.y="ID")
-#  dist_b$DESIG2 <- mapvalues(dist_b$DESIG, levels(dist_b$DESIG), c(1:15))
-  dist_b$year <- as.numeric(dist_b$STATUS_YR)
-  dim(dist_b)
+############# LOAD DISTANCE DATA BASE AND MERGE WITH PARK FEATURES ############
+dist <- fread("Dataframes/Estrategia 2/distance_dataframe.csv")
+dist_merge <- merge(dist, parks_b, by.x = "buffer_id", by.y = "ID") %>%
+  mutate(STATUS_YR = as.numeric(STATUS_YR)) %>%
+  mutate(DESIG2 = as.numeric(DESIG2))
 
-  for(y in 2000:2016) {
-    
-    print(paste0("year ",y))
-    dist_yl <- list()
-    eval(parse(text=paste("dist_y <- dist_b[dist_b$year < ",y,",]", sep="")))
-    print(dim(dist_y))
-    
-    # For each park
-    for(i in levels(dist_b$DESIG2)){
-      print(i)
-      dist_temp <- dist_y[dist_y$DESIG2==i,]
-      #    print(dim(dist_temp))
-      setorder(dist_temp, ID,-treatment,dist)
-      dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
-      dist_yl[[i]] <- dist_temp
-    }
-    saveRDS(dist_yl, file =  paste0("Dataframes/", "Estrategia ",d,"/dist_",y,".rds"))
+####################### CREATE DATABASES PER YEAR/DESIG ########################
+# This loop takes the merged data and split it by year in a recursive way, and
+# later create a nested list with two indices: year and type of area by its 
+# desig code (1-15). 
+################################################################################
 
-    # By type of area 
-    for(a in areas) {
-      print(paste(a, "Parks"))
-      eval(parse(text=paste("dist_temp <- dist_yl[",a,"]", sep="")))
-      dist_temp <- do.call(rbind, dist_temp)
-      setorder(dist_temp, ID,-treatment,dist)
-      dist_temp <- dist_temp %>% group_by(ID) %>% filter(row_number(ID) == 1)
-      saveRDS(dist_temp, file =  paste0("Dataframes/", "Estrategia ",d,"/dist_",y,"_",a,".rds"))
-    }
-  }
-}
+span_years <- c(2000:2016)
 
+dist_merge_years <- sapply(span_years, function(year){
+  print(year)
+  #Subset in time
+  df_yr <- dist_merge %>% dplyr::filter(., STATUS_YR < year)
+  #Get list of area types by year
+  types <- unique(df_yr[,'DESIG2']) %>% sort(.)
+  names(types) <- types
+  print(types)
+  #Subset in type and time
+  df_yr_type_total <- types %>% sapply(function(area_type){
+    df_yr_type <- df_yr %>% filter(DESIG2 == area_type) %>%
+      setorder(., ID, -treatment, layer) %>%
+      #Order by pixel and select the nearest contol one.
+      group_by(ID) %>% filter(row_number(ID) == 1) %>%
+      ungroup()
+   }, simplify=F, USE.NAMES=T)
+  return(df_yr_type_total)
+}) 
+
+########################## BIND DATA BY AREA TYPE ###########################
+# This loop takes the dist_merge_years object, filter the area corresponding
+# lists and bind them to get a area df per year. As with years, we select
+# only relevant pixels. 
+#############################################################################
+
+
+areas <- list(all, national, regional)
+
+dist_merge_areas_all <- mapply(function(x, year){
+  all <- x[as.character(areas[[1]])] %>%
+    do.call(rbind, .) %>%
+    setorder(ID,-treatment, layer) %>% 
+    group_by(ID) %>% 
+    filter(row_number(ID) == 1)
+  # year <- max(all[, "STATUS_YR"]) + 1
+  print(year)
+  saveRDS(all, paste0("Dataframes/Estrategia 2/test/dist_", year, "_all.rds"))
+}, x = dist_merge_years, year = span_years)
+
+dist_merge_areas_national <- mapply(function(x, year){
+  all <- x[as.character(areas[[2]])] %>%
+    do.call(rbind, .) %>%
+    setorder(ID,-treatment, layer) %>% 
+    group_by(ID) %>% 
+    filter(row_number(ID) == 1)
+  #year <- max(all[, "STATUS_YR"]) + 1
+  print(year)
+  saveRDS(all, paste0("Dataframes/Estrategia 2/test/dist_", year, "_national.rds"))
+}, x = dist_merge_years, year = span_years)
+
+dist_merge_areas_regional <- mapply(function(x, year){
+  all <- x[as.character(areas[[3]])] %>%
+    do.call("rbind", .) %>%
+    setorder(ID,-treatment, layer) %>% 
+    group_by(ID) %>% 
+    filter(row_number(ID) == 1)
+  #year <- max(all[, "STATUS_YR"]) + 1
+  print(year)
+  saveRDS(all, paste0("Dataframes/Estrategia 2/test/dist_", year, "_regional.rds"))
+}, x = dist_merge_years, year = span_years)
+
+
+############################## SATNITY CHECK ######################################
+np_2000 <- natural_parks[[1]]@data %>%
+  mutate(STATUS_YR = as.numeric(STATUS_YR)) %>%
+  mutate(DESIG2 = mapvalues(.$DESIG, levels(as.factor(.$DESIG)), c(1:15))) %>%
+  mutate(government = ifelse(DESIG2 %in% areas[[2]], "national",
+                             ifelse(DESIG2 %in% areas[[3]], "regional", "private"))) %>%
+  dplyr::filter(., STATUS_YR < 2000) %>%
+  group_by(DESIG2, government) %>%
+  summarize(count = n())
 
 ###############################################################################
 ########### LOOP BETWEEN YEARS AND PARK TYPES TO CREATE DATA FRAMES ###########
