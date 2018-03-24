@@ -35,15 +35,17 @@ simci_coca <- read.csv(paste0( "Dataframes", "/", "coca_simci_extract.csv")) %>%
 simci_mining <- read.csv(paste0("Dataframes", "/", "illegal_mining_simci_extract.csv")) %>% dplyr::select(contains("EVOA"), ID)
 
 
-list_files <- list.files(paste0("Dataframes", "/", "Estrategia 2"), full.names = TRUE)
+list_files <- list.files(paste0("Dataframes/", "Estrategia 2", "/test"), full.names = TRUE)
 rds_2000 <- list_files[str_detect(list_files, "dist_2000")][c(1:3)] %>%
   lapply(readRDS) %>%
   lapply(data.frame)
 
+list_files <- list.files(paste0("Dataframes/", "Estrategia 2"), full.names = TRUE)
 territories_2000 <- list_files[str_detect(list_files, "_2000")] %>%
   .[str_detect(., "terr")] %>%
   lapply(readRDS) %>%
   lapply(data.frame)
+
 
 #Aggregate deforestation (2001 - 2012) and Coca crops (2001 - 2012)
 defo$loss_sum <- rowSums(defo[, c(5:length(names(defo)) - 1 )])
@@ -51,11 +53,56 @@ loss_sum <- dplyr::select(defo, c(ID, loss_sum)) %>% mutate(loss_sum = loss_sum 
 simci_coca$coca_agg <- rowMeans(simci_coca[, c(1:16)], na.rm = T)
 
 
+# #Sanity checks
+# db <- read.dta(paste0("UNEP", "/", "natural_parks.dta"))
+# 
+# lapply(rds_2000, function(x){
+#   pixel_database <- x %>% group_by(buffer_id, DESIG2, year) %>% 
+#     summarize(., n=n()) %>% 
+#     ungroup() %>%
+#     mutate(buffer_id = as.numeric(as.character(buffer_id)))
+#     
+#   feature_database <- db[db$ID %in% unique(pixel_database$buffer_id) &
+#                            db$STATUS_YR <= max(pixel_database$year), ]
+#   
+#   print(dim(pixel_database)) 
+#   print(dim(feature_database))
+#   # if(dim(feature_database)[1] != dim(pixel_database)[1]){
+#   #   print("Not same lenght/number of parks in both databases")
+#   # }
+#   # 
+# })
+# 
+# 
+# # Pixel by year (stock) and type of park (and also for groups of park types)
+# list_codes = list(c(1:15),
+#                   c(2,5,7,8,11,12,13,14,15),
+#                   c(1,3,4,6,10)
+#                   )
+# ID_2000 <- lapply(list_codes, function(x){
+#   feature_database <- db %>% 
+#     mutate(DESIG2 = mapvalues(.$DESIG, levels(as.factor(.$DESIG)), c(1:15))) %>%
+#     mutate(DESIG2 = as.numeric(DESIG2)) %>%
+#     .[.$DESIG2 %in% x & .$STATUS_YR < 2000, ]
+#   
+#   return(unique(feature_database$ID))
+# })
+# 
+# 
+# ID_RDS <-lapply(rds_2000, function(x){
+#   db <- x %>% 
+#     mutate(buffer_id = as.numeric(as.character(buffer_id)))
+#   return(unique(db$buffer_id))
+# })
+#   
+
+
+
 #Merge data
 defo_dist <- lapply(rds_2000, function(x){
   merge(loss_sum, x, by.x = "ID", by.y = "ID") %>%
     mutate(., loss_sum = loss_sum * 100) %>%
-    mutate(., dist_disc = ifelse(treatment == 1, 1, -1) * dist) %>%
+    mutate(., dist_disc = ifelse(treatment == 1, 1, -1) * layer) %>%
     mutate(., dist_disc = dist_disc / 1000) %>%
     # mutate(., buffer_id = as.character(buffer_id)) %>% mutate(., buffer_id = as.factor(buffer_id))
     merge(., cov, by = "ID", all.x = T) %>%
