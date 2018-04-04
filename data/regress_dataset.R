@@ -188,9 +188,6 @@ np_2000 <- natural_parks[[1]]@data %>%
 areas <- c("all","national","regional")
 
 # test
-a <- "regional" 
-d <- 2
-y <- 2015
 
 for(d in c(2:2)) { 
   print(paste0("distance ",d))
@@ -234,7 +231,7 @@ for(d in c(2:2)) {
 
 # for each area (1-15)
 
-for(d in c(1:2)) { 
+for(d in c(2:2)) { 
   print(paste0("distance ",d))
   
   for(a in 1:15) {
