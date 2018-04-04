@@ -175,9 +175,9 @@ rd_robust_terr_2 <- lapply(defo_dist_terr, function(terr){
   )
 })
 
-setwd("~/Dropbox/BANREP/Backup Data/")
-saveRDS(rd_robust_parks_2, "rd_robust_parks_2.rds")
-saveRDS(rd_robust_terr_2, "rd_robust_terr_2.rds")
+
+saveRDS(rd_robust_parks_2, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_parks_2"))
+saveRDS(rd_robust_terr_2, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_terr_2.rds"))
 
 
 #RD with controls for fixed bandwiths (5km and 10km)
@@ -234,12 +234,11 @@ rd_robust_terr_2_ctrl <- lapply(defo_dist_terr, function(park){
   )
 })
 
-setwd("~/Dropbox/BANREP/Backup Data/")
-saveRDS(rd_robust_parks_2_ctrl, "rd_robust_parks_2_ctrl.rds")
-saveRDS(rd_robust_terr_2_ctrl, "rd_robust_terr_2_ctrl.rds")
 
-rd_robust_parks_2_ctrl <- readRDS("rd_robust_parks_2_ctrl.rds")
-rd_robust_terr_2_ctrl <- readRDS("rd_robust_terr_2_ctrl.rds")
+
+
+saveRDS(rd_robust_parks_2_ctrl, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_parks_2_ctrl.rds"))
+saveRDS(rd_robust_terr_2_ctrl, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_terr_2_ctrl.rds"))
 
 
 ############################# SIMCI DATA ##################################
@@ -271,8 +270,11 @@ rd_robust_terr_2_coca <- lapply(defo_dist_terr, function(park){
 })
 
 
+saveRDS(rd_robust_parks_2_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_parks_2_coca.rds"))
+saveRDS(rd_robust_terr_2_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_terr_2_coca.rds"))
 
-rd_robust_parks_2_mining <- lapply(defo_dist[1:2], function(park){
+
+rd_robust_parks_2_mining <- lapply(defo_dist, function(park){
   rdrobust(
     y = park$illegal_mining_EVOA_2014,
     x = park$dist_disc,
@@ -294,15 +296,8 @@ rd_robust_terr_2_mining <- lapply(defo_dist_terr, function(park){
   )
 })
 
-
-
-
-saveRDS(rd_robust_terr_2_coca, paste0("Backup Data", "/", "rd_robust_terr_2_coca.rds"))
-saveRDS(rd_robust_terr_2_mining, paste0("Backup Data", "/", "rd_robust_terr_2_mining.rds"))
-
-saveRDS(rd_robust_parks_2_coca, paste0("Backup Data", "/", "rd_robust_parks_2_coca.rds"))
-saveRDS(rd_robust_parks_2_mining, paste0("Backup Data", "/", "rd_robust_parks_2_mining.rds"))
-
+saveRDS(rd_robust_parks_2_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_parks_2_mining.rds"))
+saveRDS(rd_robust_terr_2_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_terr_2_mining.rds"))
 
 
 ############################################# STRATEGY 1: ALL BORDERS ###################################################
@@ -541,9 +536,9 @@ stargazer(df_optimal_final, summary = F, decimal.mark = ",", digits = 3, digit.s
 
 #Heterogeneus effects by clump and fixed bw's (5 km)
 
-list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
+list_df <- c(defo_dist, defo_dist_terr) %>%
   lapply(., function(x) base::subset(x, roads == 1))
-rd_robust_fixed_five_clump1_2_coca <-  lapply(list_df, function(park){
+rd_robust_five_roads1 <-  lapply(list_df, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
@@ -556,9 +551,9 @@ rd_robust_fixed_five_clump1_2_coca <-  lapply(list_df, function(park){
   )
 })
 
-list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+list_df <- c(defo_dist, defo_dist_terr) %>%
   lapply(function(x) filter(x, roads == 0))
-rd_robust_fixed_five_clump0_2_coca <-  lapply(list_df, function(park){
+rd_robust_five_roads0 <-  lapply(list_df, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
@@ -570,16 +565,55 @@ rd_robust_fixed_five_clump0_2_coca <-  lapply(list_df, function(park){
     h = 5
   )
 })
+
+saveRDS(rd_robust_five_roads0.rds, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_five_roads0.rds"))
+saveRDS(rd_robust_five_roads1.rds, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_five_roads1.rds"))
+
+#Heterogeneus effects by clump and fixed bw's (5 km)
+
+list_df <- c(defo_dist, defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, clumps_1 == 1))
+rd_robust_five_clump1 <-  lapply(list_df, function(park){
+  rdrobust(
+    y = park$loss_sum,
+    x = park$dist_disc,
+    c = 0,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    all = T,
+    h = 5
+  )
+})
+
+list_df <- c(defo_dist, defo_dist_terr) %>%
+  lapply(function(x) filter(x, clumps_1 == 0))
+rd_robust_five_clump0 <-  lapply(list_df, function(park){
+  rdrobust(
+    y = park$loss_sum,
+    x = park$dist_disc,
+    c = 0,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    all = T,
+    h = 5
+  )
+})
+
+saveRDS(rd_robust_five_clump0, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_five_clump0.rds"))
+saveRDS(rd_robust_five_clump1, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_five_clump1.rds"))
 
 
 #Heterogeneus effects by clump and fixed bw's (10 km)
 
-list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+list_df <- c(defo_dist, defo_dist_terr) %>%
   lapply(., function(x) base::subset(x, roads == 1))
-rd_robust_fixed_ten_clump1_2 <-  lapply(list_df, function(park){
+rd_robust_ten_roads1 <-  lapply(list_df, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
+    c = 0,
     covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
@@ -588,12 +622,13 @@ rd_robust_fixed_ten_clump1_2 <-  lapply(list_df, function(park){
   )
 })
 
-list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+list_df <- c(defo_dist, defo_dist_terr) %>%
   lapply(function(x) filter(x, roads == 0))
-rd_robust_fixed_ten_clump0_2 <-  lapply(list_df, function(park){
+rd_robust_ten_roads0 <-  lapply(list_df, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
+    c = 0,
     covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
@@ -602,44 +637,118 @@ rd_robust_fixed_ten_clump0_2 <-  lapply(list_df, function(park){
   )
 })
 
+saveRDS(rd_robust_ten_roads0, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_ten_roads0.rds"))
+saveRDS(rd_robust_ten_roads1 str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_ten_roads1.rds"))
 
-#Heterogeneus effects by clump and optimal bw's
+#Heterogeneus effects by clump and fixed bw's (10 km)
 
-list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+list_df <- c(defo_dist, defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, clumps_1 == 1))
+rd_robust_ten_clump1 <-  lapply(list_df, function(park){
+  rdrobust(
+    y = park$loss_sum,
+    x = park$dist_disc,
+    c = 0,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    all = T,
+    h = 10
+  )
+})
+
+list_df <- c(defo_dist, defo_dist_terr) %>%
+  lapply(function(x) filter(x, clumps_1 == 0))
+rd_robust_ten_clump0 <-  lapply(list_df, function(park){
+  rdrobust(
+    y = park$loss_sum,
+    x = park$dist_disc,
+    c = 0,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    all = T,
+    h = 10
+  )
+})
+
+saveRDS(rd_robust_ten_clump0, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_ten_clump0.rds"))
+saveRDS(rd_robust_ten_clump1, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_ten_clump1.rds"))
+
+
+#Heterogeneus effects by clump and optimal bw's (Roads)
+
+list_df <- c(defo_dist, defo_dist_terr) %>%
   lapply(., function(x) base::subset(x, roads == 1))
-rd_robust_clump1_2 <- lapply(list_df, function(park){
+rd_robust_roads0 <- lapply(list_df, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
     covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
-    nnmatch = 3,
+    nnmatch = 8,
     all = T
   )
 })
 
 
 
-list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+list_df <- c(defo_dist, defo_dist_terr) %>%
   lapply(., function(x) base::subset(x, roads == 0))
-rd_robust_clump0_2 <- lapply(list_df, function(park){
+rd_robust_roads1 <- lapply(list_df, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
     covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
-    nnmatch = 3,
+    nnmatch = 8,
+    all = T
+  )
+})
+
+
+saveRDS(rd_robust_roads0, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_roads0.rds"))
+saveRDS(rd_robust_roads1, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_roads1.rds"))
+
+
+#Heterogeneus effects by clump and optimal bw's (Clumps)
+
+
+list_df <- c(defo_dist, defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, clumps_1 == 1))
+rd_robust_clump1 <- lapply(list_df, function(park){
+  rdrobust(
+    y = park$loss_sum,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    nnmatch = 8,
     all = T
   )
 })
 
 
 
-setwd("~/Dropbox/BANREP/Backup Data/")
-saveRDS(rd_robust_clump1_2, "rd_robust_roads1_2.rds")
-saveRDS(rd_robust_clump0_2, "rd_robust_roads0_2.rds")
+list_df <- c(defo_dist, defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, clumps_1 == 0))
+rd_robust_clump0 <- lapply(list_df, function(park){
+  rdrobust(
+    y = park$loss_sum,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    nnmatch = 8,
+    all = T
+  )
+})
+
+
+saveRDS(rd_robust_clump0, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump0.rds"))
+saveRDS(rd_robust_clump1, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump1.rds"))
 
 
 ################################################# HETEROGENEUS EFFECTS #################################################
@@ -649,9 +758,9 @@ saveRDS(rd_robust_clump0_2, "rd_robust_roads0_2.rds")
 
 #Heterogeneus effects by clump and fixed bw's for coca crops (5 km)
 
-list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
+list_df <- c(defo_dist, defo_dist_terr) %>%
   lapply(., function(x) base::subset(x, clumps_1 == 1))
-rd_robust_fixed_five_clump1_2_coca <-  lapply(list_df, function(park){
+rd_robust_five_clump1_coca <-  lapply(list_df, function(park){
   rdrobust(
     y = park$coca_agg,
     x = park$dist_disc,
@@ -664,9 +773,9 @@ rd_robust_fixed_five_clump1_2_coca <-  lapply(list_df, function(park){
   )
 })
 
-list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
+list_df <- c(defo_dist, defo_dist_terr) %>%
   lapply(function(x) filter(x, clumps_1 == 0))
-rd_robust_fixed_five_clump0_2_coca <-  lapply(list_df, function(park){
+rd_robust_five_clump0_coca <-  lapply(list_df, function(park){
   rdrobust(
     y = park$coca_agg,
     x = park$dist_disc,
@@ -679,17 +788,16 @@ rd_robust_fixed_five_clump0_2_coca <-  lapply(list_df, function(park){
   )
 })
 
+saveRDS(rd_robust_five_clump0_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_five_clump0_coca.rds"))
+saveRDS(rd_robust_five_clump1_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_five_clump1_coca.rds"))
 
-saveRDS(rd_robust_fixed_five_clump1_2_coca, 
-        paste0("Deforestacion", "/", "Results", "/", "RD", "/", "Models", "/" ,"rd_robust_fixed_five_clump1_2_coca"))
-saveRDS(rd_robust_fixed_five_clump0_2_coca, 
-        paste0("Deforestacion", "/", "Results", "/", "RD", "/","Models", "/" ,"rd_robust_fixed_five_clump0_2_coca"))
+
 
 #Heterogeneus effects by clump and fixed bw's for illegal mining (5 km)
 
-list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
+list_df <- c(defo_dist, defo_dist_terr) %>%
   lapply(., function(x) base::subset(x, clumps_1 == 1))
-rd_robust_fixed_five_clump1_2_mining <-  lapply(list_df, function(park){
+rd_robust_five_clump1_mining <-  lapply(list_df, function(park){
   rdrobust(
     y = park$illegal_mining_EVOA_2014,
     x = park$dist_disc,
@@ -702,9 +810,9 @@ rd_robust_fixed_five_clump1_2_mining <-  lapply(list_df, function(park){
   )
 })
 
-list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
+list_df <- c(defo_dist, defo_dist_terr) %>%
   lapply(function(x) filter(x, clumps_1 == 0))
-rd_robust_fixed_five_clump0_2_mining <-  lapply(list_df, function(park){
+rd_robust_five_clump0_mining <-  lapply(list_df, function(park){
   rdrobust(
     y = park$illegal_mining_EVOA_2014,
     x = park$dist_disc,
@@ -718,16 +826,16 @@ rd_robust_fixed_five_clump0_2_mining <-  lapply(list_df, function(park){
 })
 
 
-saveRDS(rd_robust_fixed_five_clump1_2_mining, 
-        paste0("Deforestacion", "/", "Results", "/","RD", "/", "Models", "/" ,"rd_robust_fixed_five_clump1_2_mining"))
-saveRDS(rd_robust_fixed_five_clump0_2_mining, 
-        paste0("Deforestacion", "/", "Results", "/","RD", "/", "Models", "/" ,"rd_robust_fixed_five_clump0_2_mining"))
+saveRDS(rd_robust_five_clump0_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_five_clump0_mining.rds"))
+saveRDS(rd_robust_five_clump1_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_five_clump1_mining.rds"))
+
+
 
 #Heterogeneus effects by clump and fixed bw's for coca crops (10 km)
 
-list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
+list_df <- c(defo_dist, defo_dist_terr) %>%
   lapply(., function(x) base::subset(x, clumps_1 == 1))
-rd_robust_fixed_ten_clump1_2_coca <-  lapply(list_df, function(park){
+rd_robust_ten_clump1_coca <-  lapply(list_df, function(park){
   rdrobust(
     y = park$coca_agg,
     x = park$dist_disc,
@@ -740,9 +848,9 @@ rd_robust_fixed_ten_clump1_2_coca <-  lapply(list_df, function(park){
   )
 })
 
-list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
+list_df <- c(defo_dist, defo_dist_terr) %>%
   lapply(function(x) filter(x, clumps_1 == 0))
-rd_robust_fixed_ten_clump0_2_coca <-  lapply(list_df, function(park){
+rd_robust_ten_clump0_coca <-  lapply(list_df, function(park){
   rdrobust(
     y = park$coca_agg,
     x = park$dist_disc,
@@ -755,18 +863,16 @@ rd_robust_fixed_ten_clump0_2_coca <-  lapply(list_df, function(park){
   )
 })
 
+saveRDS(rd_robust_ten_clump0_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_ten_clump0_coca.rds"))
+saveRDS(rd_robust_ten_clump1_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_ten_clump1_coca.rds"))
 
-saveRDS(rd_robust_fixed_ten_clump1_2_coca, 
-        paste0("Deforestacion", "/", "Results", "/","RD", "/", "Models", "/" ,"rd_robust_fixed_ten_clump1_2_coca"))
-saveRDS(rd_robust_fixed_ten_clump0_2_coca, 
-        paste0("Deforestacion", "/", "Results", "/","RD", "/", "Models", "/" ,"rd_robust_fixed_ten_clump0_2_coca"))
 
 
 #Heterogeneus effects by clump and fixed bw's for illegal mining (10 km)
 
-list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
-  lapply(., function(x) base::subset(x, roads == 1))
-rd_robust_fixed_ten_clump1_2_mining <-  lapply(list_df, function(park){
+list_df <- c(defo_dist, defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, clumps_1 == 1))
+rd_robust_ten_clump1_mining <-  lapply(list_df, function(park){
   rdrobust(
     y = park$illegal_mining_EVOA_2014,
     x = park$dist_disc,
@@ -779,9 +885,9 @@ rd_robust_fixed_ten_clump1_2_mining <-  lapply(list_df, function(park){
   )
 })
 
-list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
-  lapply(function(x) filter(x, roads == 0))
-rd_robust_fixed_five_clump0_2_mining <-  lapply(list_df, function(park){
+list_df <- c(defo_dist, defo_dist_terr) %>%
+  lapply(function(x) filter(x, clumps_1 == 0))
+rd_robust_ten_clump0_mining <-  lapply(list_df, function(park){
   rdrobust(
     y = park$illegal_mining_EVOA_2014,
     x = park$dist_disc,
@@ -794,17 +900,16 @@ rd_robust_fixed_five_clump0_2_mining <-  lapply(list_df, function(park){
   )
 })
 
-saveRDS(rd_robust_fixed_ten_clump1_2_mining, 
-        paste0("Deforestacion","/",  "Results", "/","RD", "/", "Models", "/" ,"rd_robust_fixed_ten_clump1_2_mining"))
-saveRDS(rd_robust_fixed_ten_clump0_2_mining, 
-        paste0("Deforestacion", "/", "Results", "/","RD", "/", "Models", "/" ,"rd_robust_fixed_ten_clump0_2_mining"))
+
+saveRDS(rd_robust_ten_clump0_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_ten_clump0_mining.rds"))
+saveRDS(rd_robust_ten_clump1_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_ten_clump1_mining.rds"))
 
 
 #Heterogeneus effects by clump and optimal bw's for Coca Crops
 
 list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
   lapply(., function(x) base::subset(x, clumps_1 == 1))
-rd_robust_clump1_2_coca <- lapply(list_df, function(park){
+rd_robust_clump1_coca <- lapply(list_df, function(park){
   rdrobust(
     y = park$coca_agg,
     x = park$dist_disc,
@@ -820,7 +925,7 @@ rd_robust_clump1_2_coca <- lapply(list_df, function(park){
 
 list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
   lapply(., function(x) base::subset(x, clumps_1 == 0))
-rd_robust_clump0_2_coca <- lapply(list_df, function(park){
+rd_robust_clump0_coca <- lapply(list_df, function(park){
   rdrobust(
     y = park$coca_agg,
     x = park$dist_disc,
@@ -833,17 +938,18 @@ rd_robust_clump0_2_coca <- lapply(list_df, function(park){
 })
 
 
-saveRDS(rd_robust_clump1_2_coca , 
-        paste0("Deforestacion","/",  "Results", "/","RD", "/", "Models", "/" ,"rd_robust_clump1_2_coca"))
-saveRDS(rd_robust_clump0_2_coca , 
-        paste0("Deforestacion", "/", "Results", "/","RD", "/", "Models", "/" ,"rd_robust_clump0_2_coca"))
+
+saveRDS(rd_robust_clump0_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump0_coca.rds"))
+saveRDS(rd_robust_clump1_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump1_coca.rds"))
+
+
 
 
 #Heterogeneus effects by clump and optimal bw's for Illegal mining
 counter <- 0
-list_df <- c(defo_dist[2], defo_dist_terr) %>%
+list_df <- c(defo_dist[1], defo_dist_terr) %>%
   lapply(., function(x) base::subset(x, clumps_1 == 1))
-rd_robust_clump1_2_mining <- lapply(list_df, function(park){
+rd_robust_clump1_mining <- lapply(list_df, function(park){
   counter <<- counter + 1
   print(counter)
   rdrobust(
@@ -861,7 +967,7 @@ rd_robust_clump1_2_mining <- lapply(list_df, function(park){
 
 list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
   lapply(., function(x) base::subset(x, clumps_1 == 0))
-rd_robust_clump0_2_mining <- lapply(list_df, function(park){
+rd_robust_clump0_mining <- lapply(list_df, function(park){
   rdrobust(
     y = park$illegal_mining_EVOA_2014,
     x = park$dist_disc,
@@ -874,14 +980,11 @@ rd_robust_clump0_2_mining <- lapply(list_df, function(park){
 })
 
 
-saveRDS(rd_robust_clump1_2_mining, 
-        paste0("Deforestacion","/",  "Results", "/","RD", "/", "Models", "/" ,"rd_robust_clump1_2_mining"))
-saveRDS(rd_robust_clump0_2_mining, 
-        paste0("Deforestacion", "/", "Results", "/","RD", "/", "Models", "/" ,"rd_robust_clump0_2_mining"))
+saveRDS(rd_robust_clump0_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump0_mining.rds"))
+saveRDS(rd_robust_clump1_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump1_mining.rds"))
 
 
-
-#Heterogeneus effects by clump and optimal bw's
+#Heterogeneus effects by roads and optimal bw's
 
 list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
   lapply(., function(x) base::subset(x, roads == 1))
@@ -913,11 +1016,10 @@ rd_robust_clump0_2 <- lapply(list_df, function(park){
   )
 })
 
+saveRDS(rd_robust_clump0_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump0_mining.rds"))
+saveRDS(rd_robust_clump1_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump1_mining.rds"))
 
 
-setwd("~/Dropbox/BANREP/Backup Data/")
-saveRDS(rd_robust_clump1_2, "rd_robust_roads1_2.rds")
-saveRDS(rd_robust_clump0_2, "rd_robust_roads0_2.rds")
 
 
 
