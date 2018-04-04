@@ -20,6 +20,9 @@ library(rgdal)
 # Set directories
 setwd(Sys.getenv("DATA_FOLDER"))
 
+# Path viejo
+# setwd("/Users/leonardobonilla/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
+setwd("D:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
 
 ###############################################################################
 ####### READ SHAPEFILES: INDIGENOUS AND BLACK AREAS AND ARRANGE DATA ##########
@@ -47,8 +50,8 @@ territories_proj <- lapply(territories, spTransform, CRS=CRS("+init=epsg:3857"))
       mutate(., STATUS_YR = as.numeric(as.character(year))) 
     return(x[!as.numeric(x@data$year) > 2016, ])
   }) 
-#Export shapefile metadadata to .dta
 
+#Export shapefile metadadata to .dta
 write.dta(territories_proj[[1]]@data,"Resguardos/Resguardos.dta")
 write.dta(territories_proj[[2]]@data,"Comunidades/Comunidades.dta")
 
@@ -61,7 +64,6 @@ write.dta(territories_proj[[2]]@data,"Comunidades/Comunidades.dta")
 # AND SELECTS FOR EACH YEAR AND TYPE THE NEARER EFFECTIVE FRONTIER. THIS      #
 # WAY ALLOW US TO CORRECT IDENTIFY THE PIXEL AND ITS FEATURES                 #
 ###############################################################################
-
 
 # Distance: To any frontier, and only effective frontier
 
