@@ -22,7 +22,8 @@ setwd("~/deforestacion/")
 setwd(Sys.getenv("DATA_FOLDER"))
 
 # Path viejo
-setwd("/Users/leonardobonilla/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
+# setwd("/Users/leonardobonilla/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
+setwd("D:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
 
 
 ###############################################################################
@@ -191,14 +192,14 @@ a <- "regional"
 d <- 2
 y <- 2015
 
-for(d in c(1:2)) { 
+for(d in c(2:2)) { 
   print(paste0("distance ",d))
   for(a in areas) {
   print(paste0("area ",a))
   dist_panel <- list()
   for(y in 2001:2016) {
     print(paste0("year ",y))
-    dist_temp <- readRDS(paste0("Dataframes/","Estrategia ",d,"/test/dist_",y,"_",a,".rds"))
+    dist_temp <- readRDS(paste0("Dataframes/","Estrategia ",d,"/dist_",y,"_",a,".rds"))
     dist_temp$dist <- dist_temp$layer
     dist_temp <- dist_temp[dist_temp$dist<=20000,]
     dist_temp$year <- y
