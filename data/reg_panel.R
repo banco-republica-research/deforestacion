@@ -17,13 +17,16 @@ data <-"Datos/Dataframes/"
 
 ########################################################
 
-# Datasets: 2001-2014  
+# Datasets: 2001-2016  
 
 ########################################################
 
-# Deforestation (2001-2014) 
+# Deforestation and coca (2001-2016) 
 defo <- fread(paste0(data,"dataframe_deforestacion.csv"))
 defo <- defo[, (c("loss_year_brick_1km.1","loss_year_brick_1km.14")) := NULL]
+
+# Aca la duda es cual usar?
+
 
 # X = {clumps, geography, codmun(conflict)}
 clumps <- fread("Datos/Clumps/clump_id_dataframe_2000.csv")
