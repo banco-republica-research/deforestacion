@@ -25,18 +25,19 @@ library(stringr)
 
 # Load functions in R
 setwd("~/deforestacion/")
-source("R/process_rasters.R") 
-source("cleaning/colombia_raster.R")
+source("R/process_rasters.R")
+source("R/calculate_distances.R")
+source("cleaning/colombia_continental.R")
 
 # Set directories
-data <- "Deforestacion/Datos/"
-setwd("~/Dropbox/BANREP/")
+setwd(Sys.getenv("DATA_FOLDER"))
 
-res <- brick(paste0(data, "HansenProcessed", "/", "1.4", "/","loss_year_brick_1km.tif"))
+res <- brick("HansenProcessed/1.4/loss_year_brick_1km.tif")
+
 
 #Open natural parks shapefile (2 SP object, 1. Projected in meters and 2. Mercator)
-natural_parks <- readOGR(dsn = paste0(data, "UNEP", "/", "WDPA_June2016_COL-shapefile"), 
-                         layer = "WDPA_June2016_COL-shapefile-polygons")
+natural_parks <- readOGR(dsn = paste0("UNEP/WDPA_June2016_COL-shapefile"), 
+                         layer = "WDPA_June2016_COL-shapefile-polygons", stringsAsFactors = F)
 natural_parks_proj <- spTransform(natural_parks, CRS=CRS("+init=epsg:3857")) #Projection in meters
 
 #Remove NP that are out of continental land and parks after 2012
@@ -51,18 +52,20 @@ natural_parks <- list(natural_parks, natural_parks_proj) %>%
                            "Los Corales Del Rosario Y De San Bernardo",
                            "Gorgona",
                            "Acandi Playon Y Playona",
-                           "Uramba Bahia Malaga")) & !x@data$STATUS_YR > 2012 & !x@data$GIS_AREA < 1 , ]
-  }) %>%
-  #Remove sections of park outside continental Colombia
-  mapply(function(x, y){
-    raster::intersect(y, x)
-  }, x = . , y = colombia_municipios) 
+                           "Uramba Bahia Malaga")) & !x@data$STATUS_YR > 2016 & !x@data$GIS_AREA < 1 , ]
+  }) 
+# %>%
+#   #Remove sections of park outside continental Colombia
+#   mapply(function(x, y){
+#     raster::intersect(y, x)
+#   }, x = . , y = colombia_municipios) 
 
 #For tracktability
-natural_parks[[2]]@data$ID <- row.names(natural_parks[[2]]@data)
+natural_parks[[2]]@data$ID <- c(1:dim(natural_parks[[2]])[1])
+natural_parks[[1]]@data$ID <- c(1:dim(natural_parks[[1]])[1])
 
-setwd("~/Dropbox/BANREP/Deforestacion/Datos/UNEP")
-writeOGR(obj = natural_parks[[2]], dsn = "WDPA_Modificado" , layer = "WDPA_clean", driver = "ESRI Shapefile", overwrite_layer = TRUE)
+# Write metadata to dta (run panels in Stata)
+write.dta(natural_parks[[1]]@data, paste0("UNEP", "/", "natural_parks_strategy1.dta"))
 
 #Buffers to asses "treatment zones" of 50 km 
 buffers_natural_parks_proj <- gBuffer(natural_parks[[2]], byid = T, width = 50000) %>%
@@ -70,7 +73,6 @@ buffers_natural_parks_proj <- gBuffer(natural_parks[[2]], byid = T, width = 5000
 
 
 #Create a list of individual polygons per natural park
-natural_parks[[1]]@data$ID <- as.factor(row.names(natural_parks[[1]]@data))
 list_polygons <- list()
 total <- length(natural_parks[[1]]@data$ID)
 pb <- txtProgressBar(min = 0, max = total, style = 3)
@@ -81,12 +83,11 @@ for(i in natural_parks[[1]]@data$ID){
 close(pb)
 
 #Now the same but for the buffers
-buffers_natural_parks@data$ID <- as.factor(row.names(buffers_natural_parks@data))
 list_polygons_buffers <- list()
-total <- length(buffers_natural_parks@data$ID)
+total <- length(buffers_natural_parks_proj@data$ID)
 pb <- txtProgressBar(min = 0, max = total, style = 3)
-for(i in buffers_natural_parks@data$ID){
-  list_polygons_buffers[[i]] <- buffers_natural_parks[buffers_natural_parks@data$ID == i, ]
+for(i in buffers_natural_parks_proj@data$ID){
+  list_polygons_buffers[[i]] <- buffers_natural_parks_proj[buffers_natural_parks_proj@data$ID == i, ]
   setTxtProgressBar(pb, i)
 }
 close(pb)
@@ -100,9 +101,9 @@ for(i in c(1:length(natural_parks[[2]]@polygons))){
 }
 
 id2 <-list()
-for(i in c(1:length(buffers_natural_parks@polygons))){
+for(i in c(1:length(buffers_natural_parks_proj@polygons))){
   
-  id2[[i]] <- slot(buffers_natural_parks@polygons[[i]], "ID")
+  id2[[i]] <- slot(buffers_natural_parks_proj@polygons[[i]], "ID")
 }
 identical(id1, id2)
 rm(id1, id2)
@@ -136,26 +137,20 @@ list_polygons_clean_border_proj <- lapply(list_polygons_clean_border, function(x
     return(sp)
 })
 
-# Does it work?
-plot(list_polygons[[35]])
-plot(list_polygons_clean_border_proj[[35]], col="red", pch=19, add=T)
+# Does it work? (Yaigoje Apaporis)
+plot(list_polygons[[10]])
+plot(list_polygons_clean_border_proj[[10]], col="red", pch=19, add=T)
 
 
 #Identify cells inside national parks and buffers and their identifier
 cells_naturalparks <- cellFromPolygon(res[[1]], natural_parks[[1]])
-cells_naturalparks_buffers <- cellFromPolygon(res[[1]], buffers_natural_parks)
+cells_naturalparks_buffers <- cellFromPolygon(res[[1]], buffers_natural_parks_proj)
 cells <- mapply(function(x, y){ #Remove cells from natural park polygons and list only the buffer pixels
   x[! x %in% y]
 }, x = cells_naturalparks_buffers, y = cells_naturalparks)
 
-# Get natural park SpatialPolygon atributes by cell number
-deforest_cells <- SpatialPoints(xyFromCell(res[[1]], 1:prod(dim(res[[1]]))), proj4string = CRS(proj4string(buffers_natural_parks)))
-natural_parks_atrb <- deforest_cells %over% buffers_natural_parks
-natural_parks_atrb$ID <- row.names(natural_parks_atrb)
-natural_parks_atrb <- natural_parks_atrb[complete.cases(natural_parks_atrb[]), ]
-
 #Mask raster to values indices buffers
-res_mask_natural_parks_buffers <- mask(res[[1]], buffers_natural_parks)
+res_mask_natural_parks_buffers <- mask(res[[1]], buffers_natural_parks_proj)
 
 #Calculate distances (functional loop - use a mlaply if too slow)
 
@@ -174,7 +169,7 @@ system.time(mask_distance_border <- mapply(calculate_distances_parallel,
 endCluster()
 
 stack_distances <- stack(mask_distance_border)
-
+saveRDS(stack_distances, "rds_data/distances_border.rds")
 ###################################### EXTRACT #################################################
 #1. Extract distance as data frame per buffer (list element)
 list_dataframes_border <- pblapply(mask_distance_border, as.data.frame, xy = T, na.rm = T)
@@ -186,7 +181,8 @@ list_dataframes <- pblapply(list_dataframes_border, function(x){
 
 #3. Append all elements of the list 
 distance_dataframe <- do.call(rbind, list_dataframes)
-distance_dataframe$buffer_id <- rep(names(list_dataframes), sapply(list_dataframes, nrow)) #identify cells from buffers
+distance_dataframe$buffer_id <- rep(c(1:length(list_dataframes)), sapply(list_dataframes, nrow)) #identify cells from buffers
+
 
 ######################################## WARNING #############################################
 # The number of cells identified previously using cellsFromPolygon it is lower than the      #
@@ -204,13 +200,10 @@ deforestation_dataframe <- raster::extract(res, seq_len(ncell(res)), df = T)
 deforestation_dataframe <- deforestation_dataframe[complete.cases(deforestation_dataframe[2:length(deforestation_dataframe)]), ]
 
 #Write CSV
-setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes/Estrategia 1/")
-write.csv(distance_dataframe, "distancia_dataframe_borders.csv", row.names = F)
+
+write.csv(distance_dataframe, "Dataframes/Estrategia 1/distancia_dataframe_borders.csv", row.names = F)
 distance_dataframe_borders <- read.csv("distancia_dataframe_borders.csv")
 
-
-natural_parks_atrb$ID <- as.numeric(natural_parks_atrb$ID)
-merge <- merge(natural_parks_atrb, distance_dataframe_borders, by = "ID")
 
 ##############################################################################################
 ##############################################################################################
@@ -221,9 +214,6 @@ merge <- merge(natural_parks_atrb, distance_dataframe_borders, by = "ID")
 ##############################################################################################
 
 
-#Open shapefiles 
-setwd("~/Dropbox/BANREP/Deforestacion/Datos")
-
 #Open shapefiles (only keep those territories after 2012)
 black_territories <- readOGR(dsn = "Comunidades", layer="Tierras de Comunidades Negras (2015)")
 indigenous_territories <- readOGR(dsn = "Resguardos", layer="Resguardos Indigenas (2015)") 
@@ -233,10 +223,10 @@ territories <- list(black_territories, indigenous_territories) %>%
 territories_proj <- lapply(territories, spTransform, CRS=CRS("+init=epsg:3857")) %>% #Projection in meters
   lapply(., function(x){
     x@data <- mutate(x@data, year = str_replace_all(str_extract(x@data$"RESOLUCION", "[-][1-2][0, 9][0-9][0-9]"), "-", ""))
-    return(x[!as.numeric(x@data$year) > 2012, ])
+    return(x[!as.numeric(x@data$year) > 2016, ])
   }) %>%
   lapply(.,function(x){
-    x$ID <- row.names(x)
+    x$ID <- c(1:length(x))
     return(x)
   })
 
@@ -344,7 +334,7 @@ system.time(distances_black <- mapply(calculate_distances_parallel,
                                       points = list_polygons_clean_black_proj))
 endCluster()
 
-
+saveRDS(distances_black, "rds_data/distances_black_border_2016.rds")
 
 calculate_distances_parallel <- function(buffer, points){
   if(length(points) > 1){
@@ -365,6 +355,9 @@ system.time(distances_indigenous <- mapply(calculate_distances_parallel,
                                            buffer = list_polygons_buffers[[2]], 
                                            points = list_polygons_clean_indigenous_proj))
 endCluster()
+
+saveRDS(distances_indigenous, "rds_data/distances_indigenous_border_2016.rds")
+
 
 ###################################### EXTRACT #################################################
 #1. Extract distance as data frame per buffer (list element)
@@ -394,12 +387,12 @@ for(i in zero_lenght){
 
 #3. Append all elements of the list 
 distance_dataframe_black <- do.call(rbind, list_dataframes_black)
-names(list_dataframes_black) <- territories_proj[[1]]@data$ID
-distance_dataframe_black$buffer_id <- rep(names(list_dataframes_black), sapply(list_dataframes_black, nrow)) #identify cells from buffers
+distance_dataframe_black$buffer_id <- rep(c(1:length(list_dataframes_black)), sapply(list_dataframes_black, nrow)) #identify cells from buffers
+
 
 distance_dataframe_indigenous <- do.call(rbind, list_dataframes_indigenous)
-names(list_dataframes_indigenous) <- territories_proj[[2]]@data$ID
-distance_dataframe_indigenous$buffer_id <- rep(names(list_dataframes_indigenous), sapply(list_dataframes_indigenous, nrow)) #identify cells from buffers
+distance_dataframe_indigenous$buffer_id <- rep(c(1:length(list_dataframes_indigenous)), sapply(list_dataframes_indigenous, nrow)) #identify cells from buffers
+
 
 #4. Identify treatment and remove NA's (read WARNING)
 distance_dataframe_black$treatment <- ifelse(distance_dataframe_black$ID %in% unlist(cells_territories[[1]]), 1, 0)
@@ -409,9 +402,9 @@ list <- list(distance_dataframe_black, distance_dataframe_indigenous)
 names(list) <- c("black", "indigenous")
 
 #5. Export
-setwd("~/Dropbox/BANREP/Deforestacion/Datos/Dataframes")
+
 lapply(1:length(list), function(i){
-  write.csv(list[[i]], file = str_c("distance_dataframe_", names(list)[[i]], ".csv") , row.names = FALSE)
+  write.csv(list[[i]], file = str_c("Dataframes/Estrategia 1/df_until_2016/distance_dataframe_", names(list)[[i]], ".csv") , row.names = FALSE)
 })
 
 
