@@ -91,7 +91,7 @@ private <- 9
 ###############################################################################
 
 ############# LOAD DISTANCE DATA BASE AND MERGE WITH PARK FEATURES ############
-dist <- fread("Dataframes/Estrategia 2/distance_dataframe.csv")
+dist <- fread("Dataframes/Estrategia 1/distance_dataframe.csv")
 dist_merge <- merge(dist, parks_b, by.x = "buffer_id", by.y = "ID") %>%
   mutate(STATUS_YR = as.numeric(STATUS_YR)) %>%
   mutate(DESIG2 = as.numeric(DESIG2))
@@ -121,7 +121,11 @@ dist_merge_years <- sapply(span_years, function(year){
       ungroup()
    }, simplify=F, USE.NAMES=T)
   return(df_yr_type_total)
-}) 
+})
+
+mapply(function(year_name, list){
+  saveRDS(list, str_c("Dataframes/Estrategia 2/dist_", year_name, ".rds"))
+}, year_name = span_years, list = dist_merge_years)
 
 ########################## BIND DATA BY AREA TYPE ###########################
 # This loop takes the dist_merge_years object, filter the area corresponding
@@ -138,7 +142,6 @@ dist_merge_areas_all <- mapply(function(x, year){
     setorder(ID,-treatment, layer) %>% 
     group_by(ID) %>% 
     filter(row_number(ID) == 1)
-  # year <- max(all[, "STATUS_YR"]) + 1
   print(year)
   saveRDS(all, paste0("Dataframes/Estrategia 2/test/dist_", year, "_all.rds"))
 }, x = dist_merge_years, year = span_years)
@@ -149,7 +152,6 @@ dist_merge_areas_national <- mapply(function(x, year){
     setorder(ID,-treatment, layer) %>% 
     group_by(ID) %>% 
     filter(row_number(ID) == 1)
-  #year <- max(all[, "STATUS_YR"]) + 1
   print(year)
   saveRDS(all, paste0("Dataframes/Estrategia 2/test/dist_", year, "_national.rds"))
 }, x = dist_merge_years, year = span_years)
@@ -160,7 +162,6 @@ dist_merge_areas_regional <- mapply(function(x, year){
     setorder(ID,-treatment, layer) %>% 
     group_by(ID) %>% 
     filter(row_number(ID) == 1)
-  #year <- max(all[, "STATUS_YR"]) + 1
   print(year)
   saveRDS(all, paste0("Dataframes/Estrategia 2/test/dist_", year, "_regional.rds"))
 }, x = dist_merge_years, year = span_years)
