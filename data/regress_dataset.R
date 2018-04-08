@@ -79,7 +79,7 @@ parks_b <- natural_parks[[1]]@data[vars] %>%
 all <- c(1:15)
 national <- c(2,5,7,8,11,12,13,14,15)
 regional <- c(1,3,4,6,10)
-private <- 9
+private <- c(9)
 
 ###############################################################################
 ########### LOOP BETWEEN YEARS AND PARK TYPES TO CREATE DATA FRAMES ###########
@@ -91,7 +91,7 @@ private <- 9
 ###############################################################################
 
 ############# LOAD DISTANCE DATA BASE AND MERGE WITH PARK FEATURES ############
-dist <- fread("Dataframes/Estrategia 1/distance_dataframe.csv")
+dist <- fread("Dataframes/Estrategia 2/distance_dataframe.csv")
 dist_merge <- merge(dist, parks_b, by.x = "buffer_id", by.y = "ID") %>%
   mutate(STATUS_YR = as.numeric(STATUS_YR)) %>%
   mutate(DESIG2 = as.numeric(DESIG2))
@@ -134,7 +134,7 @@ mapply(function(year_name, list){
 #############################################################################
 
 
-areas <- list(all, national, regional)
+areas <- list(all, national, regional, private)
 
 dist_merge_areas_all <- mapply(function(x, year){
   all <- x[as.character(areas[[1]])] %>%
@@ -143,27 +143,43 @@ dist_merge_areas_all <- mapply(function(x, year){
     group_by(ID) %>% 
     filter(row_number(ID) == 1)
   print(year)
-  saveRDS(all, paste0("Dataframes/Estrategia 2/test/dist_", year, "_all.rds"))
+  saveRDS(all, paste0("Dataframes/Estrategia 2/dist_", year, "_all.rds"))
 }, x = dist_merge_years, year = span_years)
 
 dist_merge_areas_national <- mapply(function(x, year){
-  all <- x[as.character(areas[[2]])] %>%
+  national <- x[as.character(areas[[2]])] %>%
     do.call(rbind, .) %>%
     setorder(ID,-treatment, layer) %>% 
     group_by(ID) %>% 
     filter(row_number(ID) == 1)
   print(year)
-  saveRDS(all, paste0("Dataframes/Estrategia 2/test/dist_", year, "_national.rds"))
+  saveRDS(national, paste0("Dataframes/Estrategia 2/dist_", year, "_national.rds"))
 }, x = dist_merge_years, year = span_years)
 
 dist_merge_areas_regional <- mapply(function(x, year){
-  all <- x[as.character(areas[[3]])] %>%
+  regional <- x[as.character(areas[[3]])] %>%
     do.call("rbind", .) %>%
     setorder(ID,-treatment, layer) %>% 
     group_by(ID) %>% 
     filter(row_number(ID) == 1)
   print(year)
-  saveRDS(all, paste0("Dataframes/Estrategia 2/test/dist_", year, "_regional.rds"))
+  saveRDS(regional, paste0("Dataframes/Estrategia 2/dist_", year, "_regional.rds"))
+}, x = dist_merge_years, year = span_years)
+
+
+dist_merge_areas_private <- mapply(function(x, year){
+  df_private <- x[["9"]]
+  print(is.null(df_private))
+  if(!is.null(df_private)){
+    private <- df_private %>%
+      setorder(ID,-treatment, layer) %>% 
+      group_by(ID) %>% 
+      filter(row_number(ID) == 1)
+    print(year)
+    saveRDS(private, paste0("Dataframes/Estrategia 2/dist_", year, "_private.rds"))
+  } else {
+    "No private areas to rbind"
+  }
 }, x = dist_merge_years, year = span_years)
 
 
