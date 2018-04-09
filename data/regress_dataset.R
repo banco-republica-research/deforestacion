@@ -22,8 +22,8 @@ setwd("~/deforestacion/")
 setwd(Sys.getenv("DATA_FOLDER"))
 
 # Path viejo
-# setwd("/Users/leonardobonilla/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
-setwd("D:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
+setwd("/Users/leonardobonilla/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
+# setwd("D:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
 
 
 ###############################################################################
@@ -202,11 +202,11 @@ np_2000 <- natural_parks[[1]]@data %>%
 
 # for all, national, regional
 
-areas <- c("all","national","regional")
+areas <- c("all","national","regional","private")
 
 # test
 
-for(d in c(2:2)) { 
+for(d in c(1:2)) { 
   print(paste0("distance ",d))
   for(a in areas) {
   print(paste0("area ",a))
@@ -236,7 +236,11 @@ for(d in c(2:2)) {
   dist_panel$desig_first[is.na(dist_panel$desig_first)] <- 2016 
   dist_panel <- dist_panel %>% group_by(ID) %>% mutate(.,desig_first = min(desig_first))
 
-  desig_2016 <- dist_panel[dist_panel$year==2016,c("ID","buffer_id","dist","DESIG2")]
+  desig_2012 <- dist_panel[dist_panel$year==2012,c("ID","buffer_id","dist","DESIG2")]
+  names(desig_2016) <- c("ID","buffer_id_2012","dist_2012","DESIG2_2012")
+  dist_panel <- merge(dist_panel, desig_2012, all.x=TRUE, all.y=TRUE, by="ID")
+
+    desig_2016 <- dist_panel[dist_panel$year==2016,c("ID","buffer_id","dist","DESIG2")]
   names(desig_2016) <- c("ID","buffer_id_2016","dist_2016","DESIG2_2016")
   dist_panel <- merge(dist_panel, desig_2016, all.x=TRUE, all.y=TRUE, by="ID")
 
@@ -246,44 +250,44 @@ for(d in c(2:2)) {
 }
 
 
-# for each area (1-15)
-
-for(d in c(2:2)) { 
-  print(paste0("distance ",d))
-  
-  for(a in 1:15) {
-    print(paste0("area ",a))
-    dist_panel <- list()
-    for(y in 2001:2016) {
-      print(paste0("year ",y))
-      dist_temp <- readRDS(paste0("Dataframes/","Estrategia ",d,"/dist_",y,".rds"))[[a]]
-      if ((dim(dist_temp)[1]) > 0){
-        dist_temp <- dist_temp[dist_temp$dist<=20000,]
-        dist_temp$year <- y
-        dist_panel[[y-2000]] <- dist_temp
-      }
-    }
-    
-    if (length(dist_panel)>1) {
-      dist_panel <- do.call(rbind, dist_panel)
-      
-      # Balanced panel: treatment = 0 if park did not exit in year y, and Time-invariant type of park and distance (Use the 2012 park)
-      iddat <- expand.grid(ID = unique(dist_panel$ID), year = c(2001:2012))
-      dist_panel <- merge(dist_panel, iddat, all.x=TRUE, all.y=TRUE, by=c("ID", "year"))
-      dist_panel$treatment[is.na(dist_panel$treatment)] <- 0 
-
-      dist_panel$desig_first <- dist_panel$STATUS_YR
-      dist_panel$desig_first[is.na(dist_panel$desig_first)] <- 2016 
-      dist_panel <- dist_panel %>% group_by(ID) %>% mutate(.,desig_first = min(desig_first))
-      
-      desig_2016 <- dist_panel[dist_panel$year==2016,c("ID","buffer_id","dist","DESIG2")]
-      names(desig_2016) <- c("ID","buffer_id_2016","dist_2016","DESIG2_2016")
-      dist_panel <- merge(dist_panel, desig_2016, all.x=TRUE, all.y=TRUE, by="ID")
-      print(dim(dist_panel))
-      saveRDS(dist_panel, file =  paste0("Dataframes/","Estrategia ",d,"/dist_panel_",a,".rds"))
-    }
-  }
-}
+# # for each area (1-15)
+# 
+# for(d in c(2:2)) { 
+#   print(paste0("distance ",d))
+#   
+#   for(a in 1:15) {
+#     print(paste0("area ",a))
+#     dist_panel <- list()
+#     for(y in 2001:2016) {
+#       print(paste0("year ",y))
+#       dist_temp <- readRDS(paste0("Dataframes/","Estrategia ",d,"/dist_",y,".rds"))[[a]]
+#       if ((dim(dist_temp)[1]) > 0){
+#         dist_temp <- dist_temp[dist_temp$dist<=20000,]
+#         dist_temp$year <- y
+#         dist_panel[[y-2000]] <- dist_temp
+#       }
+#     }
+#     
+#     if (length(dist_panel)>1) {
+#       dist_panel <- do.call(rbind, dist_panel)
+#       
+#       # Balanced panel: treatment = 0 if park did not exit in year y, and Time-invariant type of park and distance (Use the 2012 park)
+#       iddat <- expand.grid(ID = unique(dist_panel$ID), year = c(2001:2012))
+#       dist_panel <- merge(dist_panel, iddat, all.x=TRUE, all.y=TRUE, by=c("ID", "year"))
+#       dist_panel$treatment[is.na(dist_panel$treatment)] <- 0 
+# 
+#       dist_panel$desig_first <- dist_panel$STATUS_YR
+#       dist_panel$desig_first[is.na(dist_panel$desig_first)] <- 2016 
+#       dist_panel <- dist_panel %>% group_by(ID) %>% mutate(.,desig_first = min(desig_first))
+#       
+#       desig_2016 <- dist_panel[dist_panel$year==2016,c("ID","buffer_id","dist","DESIG2")]
+#       names(desig_2016) <- c("ID","buffer_id_2016","dist_2016","DESIG2_2016")
+#       dist_panel <- merge(dist_panel, desig_2016, all.x=TRUE, all.y=TRUE, by="ID")
+#       print(dim(dist_panel))
+#       saveRDS(dist_panel, file =  paste0("Dataframes/","Estrategia ",d,"/dist_panel_",a,".rds"))
+#     }
+#   }
+# }
 
 
 
