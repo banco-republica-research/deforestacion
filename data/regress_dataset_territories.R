@@ -21,8 +21,8 @@ library(rgdal)
 setwd(Sys.getenv("DATA_FOLDER"))
 
 # Path viejo
-# setwd("/Users/leonardobonilla/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
-setwd("D:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
+setwd("/Users/leonardobonilla/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
+# setwd("D:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
 
 ###############################################################################
 ####### READ SHAPEFILES: INDIGENOUS AND BLACK AREAS AND ARRANGE DATA ##########
@@ -137,9 +137,9 @@ for(d in c(1:2)) {
     dist_panel$desig_first[is.na(dist_panel$desig_first)] <- 2016 
     dist_panel <- dist_panel %>% group_by(ID) %>% mutate(.,desig_first = min(desig_first))
     
-    desig_2012 <- dist_panel[dist_panel$year==2016,c("ID","buffer_id","dist")]
-    names(desig_2012) <- c("ID","buffer_id_2012","dist_2012")
-    dist_panel <- merge(dist_panel, desig_2012, all.x=TRUE, all.y=TRUE, by="ID")
+    desig_2016 <- dist_panel[dist_panel$year==2016,c("ID","buffer_id","dist")]
+    names(desig_2016) <- c("ID","buffer_id_2016","dist_2016")
+    dist_panel <- merge(dist_panel, desig_2016, all.x=TRUE, all.y=TRUE, by="ID")
     print(dim(dist_panel))
     saveRDS(dist_panel, file =  paste0("Dataframes/","Estrategia ",d,"/dist_panel_terr",i,".rds"))
 
