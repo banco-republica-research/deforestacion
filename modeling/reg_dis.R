@@ -22,6 +22,10 @@ library(foreign)
 library(stringr)
 
 
+# Source tables functions
+setwd(Sys.getenv("ROOT_FOLDER"))
+source("R/rd_to_tables.R")
+
 # Set directories
 setwd(Sys.getenv("DATA_FOLDER"))
 
@@ -29,13 +33,13 @@ setwd(Sys.getenv("DATA_FOLDER"))
 
 #Import datasets (covariates)
 defo <- read.csv(paste0("Dataframes", "/","dataframe_deforestacion.csv")) %>% dplyr::select(-X)
-cov <- read.csv(paste0("Dataframes", "/","geographic_covariates.csv"))
+cov <- read.csv(paste0("Dataframes", "/","geographic_covariates_new.csv"))
 treecover <- read.csv(paste0("Dataframes", "/", "treecover_2000.csv")) %>% dplyr::select(ID, treecover_agg)
 simci_coca <- read.csv(paste0( "Dataframes", "/", "coca_simci_extract.csv")) %>% dplyr::select(contains("coca"), ID)
 simci_mining <- read.csv(paste0("Dataframes", "/", "illegal_mining_simci_extract.csv")) %>% dplyr::select(contains("EVOA"), ID)
 
 
-list_files <- list.files(paste0("Dataframes/", "Estrategia 2", "/test"), full.names = TRUE)
+list_files <- list.files(paste0("Dataframes/", "Estrategia 2"), full.names = TRUE)
 rds_2000 <- list_files[str_detect(list_files, "dist_2000")][c(1:3)] %>%
   lapply(readRDS) %>%
   lapply(data.frame)
@@ -480,6 +484,7 @@ rd_to_df <- function(list, dataframe){
   return(df)
 }
 ######################################################################################################################
+list_df <- c(defo_dist, defo_dist_terr)
 
 #Strategy 2 - Fixed bw's
 
@@ -638,7 +643,7 @@ rd_robust_ten_roads0 <-  lapply(list_df, function(park){
 })
 
 saveRDS(rd_robust_ten_roads0, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_ten_roads0.rds"))
-saveRDS(rd_robust_ten_roads1 str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_ten_roads1.rds"))
+saveRDS(rd_robust_ten_roads1, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_ten_roads1.rds"))
 
 #Heterogeneus effects by clump and fixed bw's (10 km)
 
@@ -759,7 +764,7 @@ saveRDS(rd_robust_clump1, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_res
 #Heterogeneus effects by clump and fixed bw's for coca crops (5 km)
 
 list_df <- c(defo_dist, defo_dist_terr) %>%
-  lapply(., function(x) base::subset(x, clumps_1 == 1))
+  lapply(., function(x) base::subset(x, clumps_5k == 1))
 rd_robust_five_clump1_coca <-  lapply(list_df, function(park){
   rdrobust(
     y = park$coca_agg,
@@ -907,8 +912,8 @@ saveRDS(rd_robust_ten_clump1_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Mod
 
 #Heterogeneus effects by clump and optimal bw's for Coca Crops
 
-list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
-  lapply(., function(x) base::subset(x, clumps_1 == 1))
+list_df <- c(defo_dist, defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, clumps_5k == 1))
 rd_robust_clump1_coca <- lapply(list_df, function(park){
   rdrobust(
     y = park$coca_agg,
@@ -924,7 +929,7 @@ rd_robust_clump1_coca <- lapply(list_df, function(park){
 
 
 list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
-  lapply(., function(x) base::subset(x, clumps_1 == 0))
+  lapply(., function(x) base::subset(x, clumps_5k == 0))
 rd_robust_clump0_coca <- lapply(list_df, function(park){
   rdrobust(
     y = park$coca_agg,
