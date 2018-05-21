@@ -13,8 +13,14 @@ library(rlist)
 library(stringi)
 
 # mac
+<<<<<<< HEAD
+setwd("D:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/")
+# setwd("/Users/leonardobonilla/Dropbox/CEER v2/Papers/Deforestacion/")
+
+=======
 # setwd("D:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/")
 setwd("/Users/leonardobonilla/Dropbox/CEER v2/Papers/Deforestacion/")
+>>>>>>> origin/master
 data <-"Datos/Dataframes/"
 
 ########################################################
@@ -34,17 +40,32 @@ coca <- read.csv(paste0(data, "cocasimci.csv")) %>%
 
 # X = {clumps, geography, codmun(conflict)}
 geo <- fread(paste0(data,"geographic_covariates_new.csv")) %>% 
+<<<<<<< HEAD
+  select(ID, altura_tile_30arc, slope, roughness, tri,prec, sq_1km.1, roads, clumps_1, clumps_5k, clumps_10k)
+treecover <- fread(paste0(data, "treecover_2000.csv")) %>% dplyr::select(ID, treecover_agg)
+mun <- fread(paste0(data,"colombia_municipios_code_r.csv")) %>% 
+  select(ID, layer) 
+# conflict <- read.dta("Datos/Conflicto/conflicto_pre2000.dta")
+x <-  merge(geo,treecover, by = "ID", all = TRUE)
+=======
   select(ID, altura_tile_30arc, slope, roughness, tri, prec,sq_1km.1, roads, clumps_1,clumps_5k,clumps_10k)
 tree <- fread(paste0(data,"treecover_2000.csv")) %>% select(ID, treecover_agg)
 mun <- fread(paste0(data,"colombia_municipios_code_r.csv")) %>% select(ID,layer)
 # conflict <- read.dta("Datos/Conflicto/conflicto_pre2000.dta")
 
 x <-  merge(geo,tree, by = "ID", all = TRUE)
+>>>>>>> origin/master
 x <-  merge(x,mun, by = "ID", all = TRUE)
 # x <-  merge(x,conflict, by.x = "layer", by.y = "codmun", all = TRUE)
+
 write.dta(x,paste0(data,"covariates.dta"))
 
+<<<<<<< HEAD
+x_hete <- x %>% 
+  select(ID,roads, clumps_1, clumps_5k, clumps_10k)
+=======
 x_hete <- x %>% select(ID,roads,clumps_1,clumps_5k,clumps_10k)
+>>>>>>> origin/master
 
 ############################
 # Merge distances by type of area to defo and X

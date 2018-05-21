@@ -22,8 +22,8 @@ setwd("~/deforestacion/")
 setwd(Sys.getenv("DATA_FOLDER"))
 
 # Path viejo
-setwd("/Users/leonardobonilla/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
-# setwd("D:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
+# setwd("/Users/leonardobonilla/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
+setwd("D:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
 
 
 ###############################################################################
@@ -123,9 +123,10 @@ dist_merge_years <- sapply(span_years, function(year){
   return(df_yr_type_total)
 })
 
-mapply(function(year_name, list){
-  saveRDS(list, str_c("Dataframes/Estrategia 2/dist_", year_name, ".rds"))
-}, year_name = span_years, list = dist_merge_years)
+
+# mapply(function(year_name, list){
+#   saveRDS(list, str_c("Dataframes/Estrategia 2/dist_", year_name, ".rds"))
+# }, year_name = span_years, list = dist_merge_years)
 
 ########################## BIND DATA BY AREA TYPE ###########################
 # This loop takes the dist_merge_years object, filter the area corresponding
@@ -182,7 +183,6 @@ dist_merge_areas_private <- mapply(function(x, year){
   }
 }, x = dist_merge_years, year = span_years)
 
-
 ############################## SATNITY CHECK ######################################
 np_2000 <- natural_parks[[1]]@data %>%
   mutate(STATUS_YR = as.numeric(STATUS_YR)) %>%
@@ -202,23 +202,27 @@ np_2000 <- natural_parks[[1]]@data %>%
 
 # for all, national, regional
 
-areas <- c("all","national","regional","private")
+# areas <- c("all","national","regional","private")
+areas <- c("private")
 
 # test
 
-for(d in c(1:2)) { 
+for(d in c(2:2)) { 
   print(paste0("distance ",d))
   for(a in areas) {
   print(paste0("area ",a))
   dist_panel <- list()
   for(y in 2001:2016) {
     print(paste0("year ",y))
-    dist_temp <- readRDS(paste0("Dataframes/","Estrategia ",d,"/dist_",y,"_",a,".rds"))
-    dist_temp$dist <- dist_temp$layer
-    dist_temp <- dist_temp[dist_temp$dist<=20000,]
-    dist_temp$year <- y
-    dist_panel[[y-2000]] <- dist_temp
-    }
+    dist_file <- paste0("Dataframes/","Estrategia ",d,"/dist_",y,"_",a,".rds")
+    if (file.exists(dist_file)) {
+      dist_temp <- readRDS(dist_file)
+      dist_temp$dist <- dist_temp$layer
+      dist_temp <- dist_temp[dist_temp$dist<=20000,]
+      dist_temp$year <- y
+      dist_panel[[y-2000]] <- dist_temp
+      }
+    }  
   dist_panel <- do.call(rbind, dist_panel)
 
   # Balanced panel: 
@@ -237,7 +241,7 @@ for(d in c(1:2)) {
   dist_panel <- dist_panel %>% group_by(ID) %>% mutate(.,desig_first = min(desig_first))
 
   desig_2012 <- dist_panel[dist_panel$year==2012,c("ID","buffer_id","dist","DESIG2")]
-  names(desig_2016) <- c("ID","buffer_id_2012","dist_2012","DESIG2_2012")
+  names(desig_2012) <- c("ID","buffer_id_2012","dist_2012","DESIG2_2012")
   dist_panel <- merge(dist_panel, desig_2012, all.x=TRUE, all.y=TRUE, by="ID")
 
     desig_2016 <- dist_panel[dist_panel$year==2016,c("ID","buffer_id","dist","DESIG2")]
