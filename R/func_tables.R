@@ -99,25 +99,37 @@ parenthesis <- function(df, std_err_name){
 
 
 
-rd_to_df_2 <- function(list_rd_objects, 
+rd_to_df_2 <- function(list_rd_files, 
                        control_df,
                        names = NULL,
-                       digits = 3){
+                       digits = 3,
+                       baseline_variable = baseline_variable,
+                       stargazer = FALSE,
+                       ...){
+  
+  # New rd_objects have a non straightforward way to extract estimate tables
+  # from the models. Now, the process is longer.
+  
+  files_data <- lapply(list_rd_files, readRDS) %>%
+    unlist(., recursive=F)
+  
+  dates_files <- lapply(list_rd_files, function(x){
+    file.info(x)[,'mtime'] %>% as.Date() 
+  }) %>% .[[1]] 
+  
   
   if(!is.null(names)){
-    if(length(names) != length(list_rd_objects)){
+    if(length(names) != length(files_data)){
       stop("Names lenght do not coincide with the lenght of the lists of rd objects")
-      }
+    }
   }
   
   if(is.null(names)){
     warning("No names specified")
   }
-  # New rd_objects have a non straightforward way to extract estimate tables
-  # from the models. Now, the process is longer.
   
   # Extract estimate statistics
-  extract_values <- lapply(list_rd_objects, function(x){
+  extract_values <- lapply(files_data, function(x){
     # Table esential stats
     coef = x$Estimate[1, 'tau.bc']
     std_err = x$Estimate[1, 'se.rb']
@@ -152,29 +164,86 @@ rd_to_df_2 <- function(list_rd_objects,
     bw <- x$bws[1]
     y %>%
       filter(abs(dist_disc) <= bw & treatment == 0) %>% 
-      summarize(mean = mean(loss_sum))
-  }, x = list_rd_objects , y = control_df, SIMPLIFY = F) %>% unlist()
+      summarize(mean = mean(UQ(sym(baseline_variable))))
+  }, x = files_data , y = control_df, SIMPLIFY = F) %>% unlist()
   
   # Concatenate data.frames and order them
   df_concat <- extract_values %>% 
     ldply() %>% 
     cbind(., defo_mean) %>%
-    see_the_stars(., beta = "coef", stat = "p_value") %>%
+    see_the_stars(., beta = "coef", stat = "p_value", latex=T) %>%
     parenthesis(., "std_err") %>%
+    mutate(date = as.character(dates_files)) %>%
+    mutate_if(., is.integer, function(x) format(x, big.mark=',')) %>%
     t() %>%
     as.data.frame() %>%
-    # mutate_all(funs(as.character)) %>%
-    # mutate_all(funs(as.numeric)) %>%
-    # mutate_all(funs(round), digits) %>%
     set_colnames(., names) %>%
-    set_rownames(.,c("Treatment", "StdErr", "t-stat", "p_value", "N_treated", "N", "CI_left", "CI_right", "bws", "y_control"))
+    set_rownames(.,c("Treatment", "StdErr", "t-stat", "p_value", "N_treated", "N", "CI_left", "CI_right", "bws", "y_control", "model_run_date"))
+
+  if(stargazer == TRUE){
+    df_concat_sg = df_concat %>% cat(stargazer(., summary=FALSE))
+    return(df_concat_sg)
+  } else {
+    return(df_concat)
+  }
   
-  return(df_concat)
   
 }
 
 
 
+########################### RD_TO_DF_PLOT ###########################
+# This function takes a list of rd objects and convert each element
+# of the list as a model column in a named data.frame. This table 
+# adds baseline control mean for the dependent variable, the second
+# argument must be a list of dataframes corresponding to each of the
+# models in the list_rd_objects. 
+###################################################################
+
+rd_to_plot <- function(variable, variable_name, list_df = defo_dist_all, ...){
+  
+  l <- lapply(list_df, function(x){
+    df <- x
+    df_dist <- x[, "dist_disc"]
+    
+    mutate(df, bin = cut(df_dist, breaks = c(-50:50), include.lowest = T)) %>%
+      group_by(bin) %>%
+      summarize(meanbin = mean(UQ(sym(variable))), sdbin = sd(UQ(sym(variable))), n = length(ID)) %>%
+      .[complete.cases(.),] %>%
+      as.data.frame() %>%
+      mutate(treatment = ifelse(as.numeric(row.names(.)) > 50, 1, 0), bins = row.names(.)) %>%
+      mutate(bins = mapvalues(.$bins, from = c(1:100), to = c(-50:49)))
+  })
+  
+  
+  library(tidyr)
+  l_all <- data.frame(l) %>%
+    select(-bin.1, -bin.2, -bin.3, -bins.1, -bins.2, -bins.3, -treatment.1, -treatment.2, -treatment.3) %>%
+    gather(key, value, -bins, -bin, -treatment) %>%
+    separate(key, c("variable", "type")) %>%
+    mutate(type = ifelse(is.na(type), 0, type)) %>%
+    spread(variable, value) %>%
+    mutate(type = as.factor(type)) %>% mutate(type = mapvalues(type, from = c(0, 1, 2, 3), 
+                                                               to = c("National Protected Areas",
+                                                                      "Regional Protected Areas",
+                                                                      "Indigenous reserves", 
+                                                                      "Black communities reserves")))
+  
+  
+  
+  
+  g <- ggplot(l_all, aes(y = meanbin, x = as.numeric(bins), colour = as.factor(treatment))) 
+  g <- g + facet_wrap( ~ type, ncol=2)
+  g <- g + stat_smooth(method = "loess") 
+  g <- g + geom_point(colour = "black", size = 1)
+  #g <- g + scale_x_continuous(limits = c(-20, 20))
+  #g <- g + scale_y_continuous(limits = c(0, 0.3))
+  g <- g + labs(x = "Distance (Km.)", y = variable_name)
+  g <- g + guides(colour = FALSE)
+  g <- g + theme_bw()
+  g
+  ggsave(paste0("RD/Graphs/RDggplot_all_strategy2", "_", variable, ".pdf"), width=30, height=20, units="cm")
+}
 
 
 
