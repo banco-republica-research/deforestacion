@@ -312,7 +312,7 @@ l <- lapply(defo_dist_all, function(x){
   
   mutate(df, bin = cut(df_dist, breaks = c(-50:50), include.lowest = T)) %>%
     group_by(bin) %>%
-    summarize(meanbin = mean(illegal_mining_EVOA_2014), sdbin = sd(illegal_mining_EVOA_2014), n = length(ID)) %>%
+    summarize(meanbin = mean(loss_sum), sdbin = sd(illegal_mining_EVOA_2014), n = length(ID)) %>%
     .[complete.cases(.),] %>%
     as.data.frame() %>%
     mutate(treatment = ifelse(as.numeric(row.names(.)) > 50, 1, 0), bins = row.names(.)) %>%
@@ -337,10 +337,10 @@ mapply(function(x, type){
   ggsave(str_c("RDggplot_", type, "strategy2",".pdf"), width=30, height=20, units="cm")
 }, x = l, type = c("Áreas protegidas nacionales","Áreas protegidas regionales","Resguardos indígenas", "Comunidades negras"))
 
+
 #Facet graph
 setwd("~/Dropbox/BANREP/Deforestacion/Results/RD/Graphs/")
 library(tidyr)
-library(locfit)
 l_all <- data.frame(l) %>%
   select(-bin.1, -bin.2, -bin.3, -bins.1, -bins.2, -bins.3, -treatment.1, -treatment.2, -treatment.3) %>%
   gather(key, value, -bins, -bin, -treatment) %>%

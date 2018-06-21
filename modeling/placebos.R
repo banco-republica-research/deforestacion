@@ -1,3 +1,7 @@
+###############################################################################
+################## PLACEBOS FOR REGRESSION DISCONTINUITIES ####################
+###############################################################################
+
 rm(list=ls())
 library(plyr)
 library(dplyr)
@@ -12,80 +16,39 @@ library(ggplot2)
 library(magrittr)
 library(foreign)
 library(stringr)
+library(rlang)
 
-######################################################## ROBUSTNESS ######################################################
-####################################################### PLACEBO TESTS ####################################################
+
+# Source tables functions
+setwd(Sys.getenv("ROOT_FOLDER"))
+source("R/rd_functions.R")
+source("R/func_tables.R")
+source("modeling/merge_datasets.R")
+
+
+# Set directories
+setwd(Sys.getenv("OUTPUT_FOLDER"))
+
+###############################################################################
+########################## PLACEBOS TO ALL AREAS  #############################
+###############################################################################
+
 list_df <- c(defo_dist[2:3], defo_dist_terr)
 
-#Natural parks
-rd_robust_placebo_national <- list()
-for(i in seq(-10, 10, by = .5)){
-  rd_robust_placebo_national[[as.character(i + 11)]] <-
-    rdrobust(
-      y = list_df[[1]]$loss_sum,
-      x = list_df[[1]]$dist_disc,
-      covs = cbind(list_df[[1]]$altura_tile_30arc, list_df[[1]]$slope, list_df[[1]]$roughness, list_df[[1]]$prec, 
-                   list_df[[1]]$sq_1km.1, list_df[[1]]$treecover_agg, list_df[[1]]$clumps_1),
-      vce = "nn",
-      all = T,
-      h = 5,
-      c = i
-    )
-}
-
-#Regional parks
-rd_robust_placebo_regional <- list()
-for(i in seq(from = -10, to = 10, by = 0.5)){
-  rd_robust_placebo_regional[[as.character(i + 11)]] <-
-    rdrobust(
-      y = list_df[[2]]$loss_sum,
-      x = list_df[[2]]$dist_disc,
-      covs = cbind(list_df[[2]]$altura_tile_30arc, list_df[[2]]$slope, list_df[[2]]$roughness, list_df[[2]]$prec, 
-                   list_df[[2]]$sq_1km.1, list_df[[2]]$treecover_agg, list_df[[2]]$clumps_1),
-      vce = "nn",
-      all = T,
-      h = 5,
-      c = i
-    )
-}
+placebos_all <- lapply(list_df, 
+                       rd_placebos, 
+                       start = -10, 
+                       end = 10, 
+                       step = 0.5)
+saveRDS(placebos_all, 'placebos_all.rds')
 
 
-#Indigenous
-rd_robust_placebo_indigenous <- list()
-for(i in seq(from = -10, to = 10, by = 0.5)){
-  rd_robust_placebo_indigenous[[as.character(i + 11)]] <-
-    rdrobust(
-      y = list_df[[3]]$loss_sum,
-      x = list_df[[3]]$dist_disc,
-      covs = cbind(list_df[[3]]$altura_tile_30arc, list_df[[3]]$slope, list_df[[3]]$roughness, list_df[[3]]$prec, 
-                   list_df[[3]]$sq_1km.1, list_df[[3]]$treecover_agg, list_df[[3]]$clumps_1),
-      vce = "nn",
-      all = T,
-      h = 5,
-      c = i
-    )
-}
-
-#Black communities
-rd_robust_placebo_black <- list()
-for(i in seq(from = -10, to = 10, by = 0.5)){
-  rd_robust_placebo_black[[as.character(i + 11)]] <-
-    rdrobust(
-      y = list_df[[4]]$loss_sum,
-      x = list_df[[4]]$dist_disc,
-      covs = cbind(list_df[[4]]$altura_tile_30arc, list_df[[4]]$slope, list_df[[4]]$roughness, list_df[[4]]$prec, 
-                   list_df[[4]]$sq_1km.1, list_df[[4]]$treecover_agg, list_df[[4]]$clumps_1),
-      vce = "nn",
-      all = T,
-      h = 5,
-      c = i
-    )
-}
-
-
+rd_to_df_2(placebos_all[[1]])
 
 ################################################ GRAPHS AND TABLES #####################################################
 ############################################## RD OBJECT TO DATAFRAME FUNCTION ########################################
+
+
 rd_to_df <- function(list, name){
   rd <- lapply(list, "[", "tabl3.str") %>%
     lapply(as.data.frame) %>%

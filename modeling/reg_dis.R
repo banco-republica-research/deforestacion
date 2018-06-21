@@ -22,110 +22,15 @@ library(foreign)
 library(stringr)
 
 
+
 # Source tables functions
 setwd(Sys.getenv("ROOT_FOLDER"))
-source("R/rd_to_tables.R")
+source("R/func_tables.R")
+source("modeling/merge_datasets.R")
 
 # Set directories
 setwd(Sys.getenv("DATA_FOLDER"))
 
-########################################## STRATEGY 2: EFFECTIVE BORDERS ###############################################
-
-#Import datasets (covariates)
-defo <- read.csv(paste0("Dataframes", "/","dataframe_deforestacion.csv")) %>% dplyr::select(-X)
-cov <- read.csv(paste0("Dataframes", "/","geographic_covariates_new.csv"))
-treecover <- read.csv(paste0("Dataframes", "/", "treecover_2000.csv")) %>% dplyr::select(ID, treecover_agg)
-simci_coca <- read.csv(paste0( "Dataframes", "/", "coca_simci_extract.csv")) %>% dplyr::select(contains("coca"), ID)
-simci_mining <- read.csv(paste0("Dataframes", "/", "illegal_mining_simci_extract.csv")) %>% dplyr::select(contains("EVOA"), ID)
-
-
-list_files <- list.files(paste0("Dataframes/", "Estrategia 2"), full.names = TRUE)
-rds_2000 <- list_files[str_detect(list_files, "dist_2000")][c(1:3)] %>%
-  lapply(readRDS) %>%
-  lapply(data.frame)
-
-list_files <- list.files(paste0("Dataframes/", "Estrategia 2"), full.names = TRUE)
-territories_2000 <- list_files[str_detect(list_files, "_2000")] %>%
-  .[str_detect(., "terr")] %>%
-  lapply(readRDS) %>%
-  lapply(data.frame)
-
-
-#Aggregate deforestation (2001 - 2012) and Coca crops (2001 - 2012)
-defo$loss_sum <- rowSums(defo[, c(5:length(names(defo)) - 1 )])
-loss_sum <- dplyr::select(defo, c(ID, loss_sum)) %>% mutate(loss_sum = loss_sum / 16)
-simci_coca$coca_agg <- rowMeans(simci_coca[, c(1:16)], na.rm = T)
-
-
-# #Sanity checks
-# db <- read.dta(paste0("UNEP", "/", "natural_parks.dta"))
-# 
-# lapply(rds_2000, function(x){
-#   pixel_database <- x %>% group_by(buffer_id, DESIG2, year) %>% 
-#     summarize(., n=n()) %>% 
-#     ungroup() %>%
-#     mutate(buffer_id = as.numeric(as.character(buffer_id)))
-#     
-#   feature_database <- db[db$ID %in% unique(pixel_database$buffer_id) &
-#                            db$STATUS_YR <= max(pixel_database$year), ]
-#   
-#   print(dim(pixel_database)) 
-#   print(dim(feature_database))
-#   # if(dim(feature_database)[1] != dim(pixel_database)[1]){
-#   #   print("Not same lenght/number of parks in both databases")
-#   # }
-#   # 
-# })
-# 
-# 
-# # Pixel by year (stock) and type of park (and also for groups of park types)
-# list_codes = list(c(1:15),
-#                   c(2,5,7,8,11,12,13,14,15),
-#                   c(1,3,4,6,10)
-#                   )
-# ID_2000 <- lapply(list_codes, function(x){
-#   feature_database <- db %>% 
-#     mutate(DESIG2 = mapvalues(.$DESIG, levels(as.factor(.$DESIG)), c(1:15))) %>%
-#     mutate(DESIG2 = as.numeric(DESIG2)) %>%
-#     .[.$DESIG2 %in% x & .$STATUS_YR < 2000, ]
-#   
-#   return(unique(feature_database$ID))
-# })
-# 
-# 
-# ID_RDS <-lapply(rds_2000, function(x){
-#   db <- x %>% 
-#     mutate(buffer_id = as.numeric(as.character(buffer_id)))
-#   return(unique(db$buffer_id))
-# })
-#   
-
-
-
-#Merge data
-defo_dist <- lapply(rds_2000, function(x){
-  merge(loss_sum, x, by.x = "ID", by.y = "ID") %>%
-    mutate(., loss_sum = loss_sum * 100) %>%
-    mutate(., dist_disc = ifelse(treatment == 1, 1, -1) * layer) %>%
-    mutate(., dist_disc = dist_disc / 1000) %>%
-    # mutate(., buffer_id = as.character(buffer_id)) %>% mutate(., buffer_id = as.factor(buffer_id))
-    merge(., cov, by = "ID", all.x = T) %>%
-    merge(., treecover, by = "ID") %>%
-    merge(., simci_coca, by = "ID", all.x = T) %>%
-    merge(., simci_mining, by = "ID", all.x = T)
-})
-
-defo_dist_terr <- lapply(territories_2000, function(x){
-  merge(loss_sum, x, by.x = "ID", by.y = "ID") %>%
-    mutate(., loss_sum = loss_sum * 100) %>%
-    mutate(., dist_disc = ifelse(treatment == 1, 1, -1) * dist) %>%
-    mutate(., dist_disc = dist_disc / 1000) %>%
-    # mutate(., buffer_id = as.character(buffer_id)) %>% mutate(., buffer_id = as.factor(buffer_id))
-    merge(., cov, by = "ID", all.x = T) %>%
-    merge(., treecover, by = "ID") %>%
-    merge(., simci_coca, by = "ID", all.x = T) %>%
-    merge(., simci_mining, by = "ID", all.x = T)
-})
 
 #Regression discontinuity for fixed bandwidths (5 and 10 km)
 list_df <- c(defo_dist[2:3], defo_dist_terr)
@@ -912,7 +817,7 @@ saveRDS(rd_robust_ten_clump1_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Mod
 
 #Heterogeneus effects by clump and optimal bw's for Coca Crops
 
-list_df <- c(defo_dist, defo_dist_terr) %>%
+list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
   lapply(., function(x) base::subset(x, clumps_5k == 1))
 rd_robust_clump1_coca <- lapply(list_df, function(park){
   rdrobust(
@@ -942,18 +847,15 @@ rd_robust_clump0_coca <- lapply(list_df, function(park){
   )
 })
 
-
-
 saveRDS(rd_robust_clump0_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump0_coca.rds"))
 saveRDS(rd_robust_clump1_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump1_coca.rds"))
 
-
-
+  
 
 #Heterogeneus effects by clump and optimal bw's for Illegal mining
 counter <- 0
 list_df <- c(defo_dist[1], defo_dist_terr) %>%
-  lapply(., function(x) base::subset(x, clumps_1 == 1))
+  lapply(., function(x) base::subset(x, clumps_5k == 1))
 rd_robust_clump1_mining <- lapply(list_df, function(park){
   counter <<- counter + 1
   print(counter)
@@ -991,11 +893,48 @@ saveRDS(rd_robust_clump1_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/
 
 #Heterogeneus effects by roads and optimal bw's
 
-list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+  list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+    lapply(., function(x) base::subset(x, roads == 1))
+  rd_robust_clump1_2 <- lapply(list_df, function(park){
+    rdrobust(
+      y = park$loss_sum,
+      x = park$dist_disc,
+      covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                   park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+      vce = "nn",
+      nnmatch = 3,
+      all = T
+    )
+  })
+  
+  
+  
+  list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+    lapply(., function(x) base::subset(x, roads == 0))
+  rd_robust_clump0_2 <- lapply(list_df, function(park){
+    rdrobust(
+      y = park$loss_sum,
+      x = park$dist_disc,
+      covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                   park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+      vce = "nn",
+      nnmatch = 3,
+      all = T
+    )
+  })
+
+saveRDS(rd_robust_clump0_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_roads0_mining.rds"))
+saveRDS(rd_robust_clump1_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_roads1_mining.rds"))
+
+
+
+#Heterogeneus effects by roads and optimal bw's
+
+list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
   lapply(., function(x) base::subset(x, roads == 1))
-rd_robust_clump1_2 <- lapply(list_df, function(park){
+rd_robust_roads1_coca <- lapply(list_df, function(park){
   rdrobust(
-    y = park$loss_sum,
+    y = park$coca_agg,
     x = park$dist_disc,
     covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
@@ -1009,9 +948,9 @@ rd_robust_clump1_2 <- lapply(list_df, function(park){
 
 list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
   lapply(., function(x) base::subset(x, roads == 0))
-rd_robust_clump0_2 <- lapply(list_df, function(park){
+rd_robust_roads0_coca <- lapply(list_df, function(park){
   rdrobust(
-    y = park$loss_sum,
+    y = park$coca_agg,
     x = park$dist_disc,
     covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
@@ -1021,16 +960,7 @@ rd_robust_clump0_2 <- lapply(list_df, function(park){
   )
 })
 
-saveRDS(rd_robust_clump0_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump0_mining.rds"))
-saveRDS(rd_robust_clump1_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump1_mining.rds"))
+saveRDS(rd_robust_roads1_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_roads0_coca.rds"))
+saveRDS(rd_robust_roads0_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_roads1_coca.rds"))
 
-
-
-
-
-df_optimal_het1 <- rd_to_df(rd_robust_clump1_2, list_df)[c("Tratamiento", "StdErr", "p", "N", "bw", "Media control"), ]
-df_optimal_het0 <- rd_to_df(rd_robust_clump0_2, list_df)[c("Tratamiento", "StdErr", "p",  "N", "bw", "Media control"), ]
-
-df_optimal_final <- rbind(df_optimal_het0, df_optimal_het1)
-stargazer(df_optimal_final, summary = F, decimal.mark = ",", digits = 3, digit.separator = ".")
 
