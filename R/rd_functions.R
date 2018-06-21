@@ -40,34 +40,34 @@ perm_test_list <- function(list_df, names, covs, z, c = 0, ...){
           p_test_element <- RATest::RDperm(W = covs,
                                            z = z,
                                            cutoff = c,
+                                           q_type = 'arot',
                                            data = x)
           return(p_test_element['results'])
         })
         
         # Prepare data as data.frame and add covariate names into structure
         perm_df <- lapply(perm_test, function(x){
-          x %>% data.frame() %>% mutate(covariate = row.names(.))
+          x %>% data.frame() %>% mutate(var = row.names(.))
         })
         # Concatenate data.frames and spit out a dataframe with df ids
 	names_rep <- rep(names, length(covs)+1) %>% 
 		factor(., levels=names) %>% 
 		sort(.) %>% as.character(.)
 
-        perm_df_id <- perm_df %>% ldply %>% mutate(df_id = names_rep)
+        perm_df_id <- perm_df %>% ldply %>% mutate(area = names_rep) %>%
+          mutate(., var = str_replace_all(var, '_', ''))
         return(perm_df_id)
       }
 }
 
 
-
-
 descriptive_stats_buffer <- function(list_df, 
                                      dist_var, 
                                      buffer = 5, 
-                                     vars, 
+                                     covs, 
                                      treatment = FALSE,
                                      names){
-  if(is.null(vars)){
+  if(is.null(covs)){
     stop('Put some variables to calculate stuff')
   }
   if(treatment==FALSE){
@@ -79,36 +79,74 @@ descriptive_stats_buffer <- function(list_df,
       
       df_sum_stats <- x %>%  
         filter(abs(UQ(sym(dist_var))) <= buffer) %>%
-        dplyr::select(vars) %>%
+        dplyr::select(covs) %>%
         mutate_all(., funs(as.numeric)) %>%
-        set_colnames(str_replace(names(.), '_', '')) %>%
+        set_colnames(str_replace_all(names(.), '_', '')) %>%
         summarize_all(., funs(
                             min = min(., na.rm=T),
                             max = max(., na.rm=T),
                             mean = mean(., na.rm=T),
-                            sd = sd(., na.rm=T))
+                            sd = sd(., na.rm=T),
+                            n = n())
                        )
-      #return(df_sum_stats)
       
        df_shape <- df_sum_stats %>% 
-         gather(stat, val) %>% 
-         separate(stat, into = c('var', 'stat'), sep = '_') %>% 
+         gather(stat, val) %>%
+         separate(stat, into = c('var', 'stat'), sep = '_') %>%
          spread(stat, val) %>%
-         dplyr::select(var, mean, sd, min, max)
-      
-       return(df_shape)
+         dplyr::select(var, mean, sd, min, max, n)
+         
+         return(df_shape)
     })
   }
   
-  named_list <- mapply(function(df, name){
-    df_named <- df %>%
-      mutate(area = name)
-  }, df = filter_list, names, SIMPLIFY = F)
+   named_list <- mapply(function(df, name){
+     df_named <- df %>%
+       mutate(area = name)
+   }, df = filter_list, name = names, SIMPLIFY = F)
+   
+   summary_df <- named_list %>% ldply() %>%
+     select(area, everything())
   
-  summary_df <- named_list %>% ldply() %>%
-    select(area, everything())
-  
-  return(summary_df)
+     return(summary_df)
 }
+
+
+
+###############################################################################
+## 		            PLACEBO TESTS - REPEAT RD CHANGING CUT-OFF 	               ##
+##  This function will calculate the treatment effect for a range of         ##
+##  cut-offs at both sides of the real cut-off (here c = 0) in otder         ##
+##  to validate our results (robustness)                                     ##  
+###############################################################################
+
+
+
+
+rd_placebos <- function(df, start, end, step=0.5, ...){
+  if(abs(start) != end){
+    stop('Start and end must be simetrical: start < 0 < end and 
+         start * -1 = end')
+  }
+  
+  results <- list()
+  for(i in seq(start, end, step)){
+    
+    index = as.character((i + 1) + end)
+    
+    results[[index]] <- rdrobust(
+      y = df$loss_sum,
+      x = df$dist_disc,
+      covs = cbind(df$altura_tile_30arc, df$slope, df$roughness, df$prec, 
+                   df$sq_1km.1, df$treecover_agg),
+      all = T,
+      h = 5,
+      c = i
+    )
+  }
+  return(results)
+  }
+
+
 
 

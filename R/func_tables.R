@@ -103,19 +103,35 @@ rd_to_df_2 <- function(list_rd_files,
                        control_df,
                        names = NULL,
                        digits = 3,
-                       baseline_variable = baseline_variable,
+                       baseline_variable,
                        stargazer = FALSE,
                        ...){
   
   # New rd_objects have a non straightforward way to extract estimate tables
   # from the models. Now, the process is longer.
   
-  files_data <- lapply(list_rd_files, readRDS) %>%
-    unlist(., recursive=F)
+  if(is_string(list_rd_files)){
+    print('rd_files')
+    files_data <- readRDS(list_rd_files)
+    dates_files <- lapply(list_rd_files, function(x){
+      file.info(x)[,'mtime'] %>% as.Date() 
+    }) %>% .[[1]] 
+    
+    
+  } else if(is.list(list_rd_files)){
+    print('List')
+    files_data <- list_rd_files
+    dates_files <- rep(0, length(list_rd_files))
+    
+  } else {
+    print('rd_object')
+    files_data <- lapply(list_rd_files, readRDS) %>%
+      unlist(., recursive=F)
+  }
   
-  dates_files <- lapply(list_rd_files, function(x){
-    file.info(x)[,'mtime'] %>% as.Date() 
-  }) %>% .[[1]] 
+  # dates_files <- lapply(list_rd_files, function(x){
+  #   file.info(x)[,'mtime'] %>% as.Date() 
+  # }) %>% .[[1]] 
   
   
   if(!is.null(names)){
@@ -126,6 +142,7 @@ rd_to_df_2 <- function(list_rd_files,
   
   if(is.null(names)){
     warning("No names specified")
+    names <- length(files_data)
   }
   
   # Extract estimate statistics
@@ -135,7 +152,7 @@ rd_to_df_2 <- function(list_rd_files,
     std_err = x$Estimate[1, 'se.rb']
     t_stat = x$Estimate[, 'tau.bc']/x$Estimate[, 'se.rb']
     p_value = 2 * pnorm(-abs(t_stat))
-    bw = x$bws[1]
+    bw = xc$bws[1]
     n_eff = x$Nh[1] + x$Nh[2]
     
     # Additional stats
@@ -153,25 +170,35 @@ rd_to_df_2 <- function(list_rd_files,
       n = n_eff,
       ci_l = round(c_int_l, digits),
       ci_r = round(c_int_r, digits),
-      bw = bw
+      bw = round(bw, digits)
     )
     return(df)
   })
   
-  # Mean baseline (dependent variable)
-  print("Estimating baseline deforestation per territory/park")
-  defo_mean <- mapply(function(x, y){
-    bw <- x$bws[1]
-    y %>%
-      filter(abs(dist_disc) <= bw & treatment == 0) %>% 
-      summarize(mean = mean(UQ(sym(baseline_variable))))
-  }, x = files_data , y = control_df, SIMPLIFY = F) %>% unlist()
+  if(!is.null(baseline_variable)){
+    # Mean baseline (dependent variable)
+    print("Estimating baseline deforestation per territory/park")
+    defo_mean <- mapply(function(x, y){
+      bw <- x$bws[1]
+      y %>%
+        filter(abs(dist_disc) <= bw & treatment == 0) %>% 
+        summarize(mean = mean(UQ(sym(baseline_variable))))
+    }, x = files_data , y = control_df, SIMPLIFY = F) %>% 
+      unlist() 
+    
+    # Round baseline means
+    defo_mean <- defo_mean %>% round(., digits)
+  } else {
+    defo_mean <- rep(0, length(files_data))
+  }
+  
+  
   
   # Concatenate data.frames and order them
   df_concat <- extract_values %>% 
     ldply() %>% 
     cbind(., defo_mean) %>%
-    see_the_stars(., beta = "coef", stat = "p_value", latex=T) %>%
+    see_the_stars(., beta = "coef", stat = "p_value") %>%
     parenthesis(., "std_err") %>%
     mutate(date = as.character(dates_files)) %>%
     mutate_if(., is.integer, function(x) format(x, big.mark=',')) %>%
@@ -186,8 +213,6 @@ rd_to_df_2 <- function(list_rd_files,
   } else {
     return(df_concat)
   }
-  
-  
 }
 
 
