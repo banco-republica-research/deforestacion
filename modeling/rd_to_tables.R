@@ -30,7 +30,7 @@ source("R/func_tables.R")
 source("modeling/merge_datasets.R")
 
 # Set directories
-setwd(Sys.getenv("OUTPUT_FOLDER"))
+setwd(paste0(Sys.getenv("OUTPUT_FOLDER")))
 
 
 
@@ -49,7 +49,7 @@ df_robusts_controls <- rd_to_df_2(rd_robust_2_controls,
            digits = 4,
            stargazer = F,
            baseline_variable = "loss_sum", 
-           latex = TRUE)
+           latex = F) %>% .[,c(2,3,5,4)]
 
 
 ###############################################################################
@@ -65,7 +65,7 @@ df_robust <- rd_to_df_2(rd_robust_2,
                       names = c("All", "National", "Regional", "Black", "Ingigenous"),
                       digits = 4,
                       baseline_variable = "loss_sum",
-                      latex = TRUE)
+                      latex = TRUE) %>% .[,c(2,3,5,4)] 
 
 
 ###############################################################################
@@ -77,33 +77,31 @@ df_robust <- rd_to_df_2(rd_robust_2,
 ################################## LIGHTS ##################################
 
 list_files <- list.files("RD/Models/new_results", full.names = T)
-rd_robust_het_effects_lights <- list_files[str_detect(list_files, regex("robust_clump0\\.|robust_clump1\\."))] %>%
-  lapply(., readRDS) 
+rd_robust_het_effects_lights <- list_files[str_detect(list_files, regex("robust_clump0\\.|robust_clump1\\."))] 
 
 list_df <- c(defo_dist[2:3], defo_dist_terr)
 df_clumps_list <- lapply(rd_robust_het_effects_lights, function(x){
-  rd_to_df_2(x[2:5], 
+  rd_to_df_2(x, 
              control_df = list_df, 
-             names = c("National", "Regional", "Black", "Ingigenous"),
+             names = c("All","National", "Regional", "Black", "Ingigenous"),
              digits = 4,
              baseline_variable = "loss_sum",
-             latex = TRUE)
+             latex = TRUE) %>% .[, c(2, 3, 5, 4)] 
 })
                      
 ################################## ROADS ##################################
 
 list_files <- list.files("RD/Models/new_results", full.names = T)
-rd_robust_het_effects_roads <- list_files[str_detect(list_files, regex("robust_roads0\\.|robust_roads1\\."))] %>%
-  lapply(., readRDS) 
+rd_robust_het_effects_roads <- list_files[str_detect(list_files, regex("robust_roads0\\.|robust_roads1\\."))] 
 
 list_df <- c(defo_dist[2:3], defo_dist_terr)
 df_roads_list <- lapply(rd_robust_het_effects_roads, function(x){
-  rd_to_df_2(x[2:5], 
+  rd_to_df_2(x, 
              control_df = list_df, 
-             names = c("National", "Regional", "Black", "Ingigenous"),
+             names = c("All", "National", "Regional", "Black", "Ingigenous"),
              digits = 4,
              baseline_variable = "loss_sum",
-             latex = TRUE)
+             latex = TRUE) %>% .[c(2, 3, 5, 4)]
 })
 
 
@@ -112,8 +110,7 @@ df_roads_list <- lapply(rd_robust_het_effects_roads, function(x){
 ###############################################################################
 
 list_files <- list.files("RD/Models/new_results/", full.names = T)
-rd_robust_2_coca <- list_files[str_detect(list_files, '_2_coca')] %>%
-  lapply(., readRDS) %>% unlist(., recursive = F)
+rd_robust_2_coca <- list_files[str_detect(list_files, '_2_coca')] 
 
 list_df <- c(defo_dist[1:2], defo_dist_terr)
 df_robust_coca_control <- rd_to_df_2(rd_robust_2_coca, 
@@ -121,7 +118,7 @@ df_robust_coca_control <- rd_to_df_2(rd_robust_2_coca,
                       names = c("All", "National", "Black", "Ingigenous"),
                       digits = 4,
                       baseline_variable = "coca_agg",
-                      latex = TRUE)
+                      latex = TRUE) %>% .[c(1, 2, 4, 3)]
 
 
 ###############################################################################
@@ -129,8 +126,7 @@ df_robust_coca_control <- rd_to_df_2(rd_robust_2_coca,
 ###############################################################################
 
 list_files <- list.files("RD/Models/new_results/", full.names = T)
-rd_robust_2_mining <- list_files[str_detect(list_files, '2_mining')] %>%
-  lapply(., readRDS) %>% unlist(., recursive = F)
+rd_robust_2_mining <- list_files[str_detect(list_files, '2_mining')] 
 
 list_df <- c(defo_dist[1:2], defo_dist_terr)
 df_robust_mining <- rd_to_df_2(rd_robust_2_mining, 
@@ -138,7 +134,7 @@ df_robust_mining <- rd_to_df_2(rd_robust_2_mining,
                                      names = c("All", "National", "Black", "Ingigenous"),
                                      digits = 4,
                                      baseline_variable = "illegal_mining_EVOA_2014",
-                                     latex = TRUE)
+                                     latex = TRUE) %>% .[,c(1, 2, 4, 3)]
 
 
 
@@ -150,8 +146,7 @@ df_robust_mining <- rd_to_df_2(rd_robust_2_mining,
 ################################## LIGHTS ##################################
 
 list_files <- list.files("RD/Models/new_results", full.names = T)
-rd_robust_coca_het_effects_lights <- list_files[str_detect(list_files, regex("robust_clump0_coca|robust_clump1_coca"))] %>%
-  lapply(., readRDS) 
+  rd_robust_coca_het_effects_lights <- list_files[str_detect(list_files, regex("robust_clump0_coca|robust_clump1_coca"))] 
 
 list_df <- c(defo_dist[1:2], defo_dist_terr)
 df_clumps_coca_list <- lapply(rd_robust_coca_het_effects_lights, function(x){
@@ -160,24 +155,23 @@ df_clumps_coca_list <- lapply(rd_robust_coca_het_effects_lights, function(x){
              names = c("All", "National", "Black", "Ingigenous"),
              digits = 4,
              baseline_variable = "coca_agg",
-             latex = TRUE)
+             latex = TRUE) %>% .[, c(1, 2, 4, 3)]
 })
 
 ################################## ROADS ##################################
 
 list_files <- list.files("RD/Models/new_results", full.names = T)
-rd_robust_het_effects_roads <- list_files[str_detect(list_files, regex("robust_roads0_coca\\.|robust_roads1_coca\\."))] %>%
-  lapply(., readRDS) 
+rd_robust_het_effects_roads <- list_files[str_detect(list_files, regex("robust_roads0_coca\\.|robust_roads1_coca\\."))] 
 
 list_df <- c(defo_dist[2:3], defo_dist_terr)
 df_roads_list <- lapply(rd_robust_het_effects_roads, function(x){
-  rd_to_df_2(x[2:5], 
+  rd_to_df_2(x, 
              control_df = list_df, 
              names = c("National", "Regional", "Black", "Ingigenous"),
              digits = 4,
              baseline_variable = 'coca_agg',
-             latex = TRUE)
-})
+             latex = TRUE) %>% .[c(1, 2, 4, 3)]
+}) 
 
 
 
