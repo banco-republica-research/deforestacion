@@ -48,9 +48,8 @@ territories_2000 <- list_files[str_detect(list_files, "_2000")] %>%
 
 #Aggregate deforestation (2001 - 2012) and Coca crops (2001 - 2012)
 defo$loss_sum <- rowSums(defo[, c(5:length(names(defo)) - 1 )])
-loss_sum <- dplyr::select(defo, c(ID, loss_sum)) %>% mutate(loss_sum = loss_sum / 16)
+loss_sum <- defo %>% mutate(loss_sum = loss_sum / 16)
 simci_coca$coca_agg <- rowMeans(simci_coca[, c(1:16)], na.rm = T)
-
 
 
 #Merge data

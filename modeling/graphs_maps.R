@@ -1,3 +1,8 @@
+##############################################################################
+####################### GRAPHS AND MAPS DOCUEMNT #############################
+##############################################################################
+
+rm(list=ls())
 library(rgeos)
 library(dplyr)
 library(forcats)
@@ -25,47 +30,68 @@ setwd(Sys.getenv("DATA_FOLDER"))
 #Get deforestation raster for reference: deforestation
 res <- brick("HansenProcessed/1.4/loss_year_brick_1km.tif")
 
-# Maps and Facts
 
-########################
-# Total area in hectares per year (for parks and territories)
-
+##############################################################################
+#################### SET UP DATA SETS AND RAW DATA ###########################
+##############################################################################
 
 # Open shapefiles
-setwd("~/Dropbox/BANREP/Deforestacion/Datos/UNEP")
-natural_parks <- readOGR(dsn = "WDPA_June2016_COL-shapefile", layer = "WDPA_June2016_COL-shapefile-polygons" , stringsAsFactors = F)
-natural_parks_proj <- spTransform(natural_parks, CRS=CRS("+init=epsg:3857")) #Projection in meters
+natural_parks <- readOGR(dsn = "UNEP/WDPA_June2016_COL-shapefile", 
+                         layer = "WDPA_June2016_COL-shapefile-polygons" ,
+                         stringsAsFactors = F) 
 
-#Remove NP that are out of continental land (Malpelo and Providencia)
+
+# Project to meters 
+natural_parks_proj <- spTransform(natural_parks, CRS=CRS("+init=epsg:3857")) 
+
+# Remove parks outside of the mainland (i.e. Malpelo and Providencia)
 natural_parks <- list(natural_parks, natural_parks_proj) %>%
   lapply(., function(x){
     x[!(x@data$NAME %in% c("Malpelo Fauna and Flora Sanctuary", 
                            "Old Providence Mc Bean Lagoon",
                            "Malpelo",
                            "Jhonny Cay Regional Park",
-                           "The Peak Regional Park")), ]
+                           "The Peak Regional Park")), ] 
   })
 
-setwd("/Users/Ivan/Dropbox/BANREP/Deforestacion/Datos")
-black_territories <- readOGR(dsn = "Comunidades", layer="Tierras de Comunidades Negras (2015)", stringsAsFactors = F)
-indigenous_territories <- readOGR(dsn = "Resguardos", layer="Resguardos Indigenas (2015)" , stringsAsFactors = F) 
+# Load territories (blakc & indigenous) datasets (shapefiles) 
+black_territories <- readOGR(dsn = "Comunidades", 
+                             layer="Tierras de Comunidades Negras (2015)", 
+                             stringsAsFactors = F)
+indigenous_territories <- readOGR(dsn = "Resguardos", 
+                                  layer="Resguardos Indigenas (2015)" , 
+                                  stringsAsFactors = F) 
+
+# Change column names to make life easiser (this must have a dplyr way)
 colnames(indigenous_territories@data)[8] <- "RESOLUCION"
 
-#Aggregate area data per year for territories 
+
+##############################################################################
+######################## FIGURE 2: AREA TIMELINE  ############################
+##############################################################################
+
+##############################################################################
+############## TOTAL AREA PER YEAR (PARKS & TERRITORIES) #####################
+########################## HECTARES/KM2 ######################################
+##############################################################################
+
+# Aggregate area data per year for territories 
 
 territories <- 
   list(black_territories, indigenous_territories) %>%
   lapply(spTransform, CRS=CRS("+init=epsg:3857")) %>%
   lapply(., function(x){
-    mutate(x@data, STATUS_YR = str_replace_all(str_extract(x@data$"RESOLUCION", "[-][1-2][0, 9][0-9][0-9]"), "-", "")
-           , area = gArea(x, byid = T) / 1e6) %>%
+  
+    mutate(x@data, 
+           STATUS_YR = str_replace_all(str_extract(x@data$"RESOLUCION", "[-][1-2][0, 9][0-9][0-9]"), "-", ""),
+           area = gArea(x, byid = T) / 1e6) %>%
       group_by(STATUS_YR) %>%
       summarize(total_area = sum(area))
 }) %>%
   Reduce(function(...) merge(..., by = "STATUS_YR", all = T, suffixes = c("_black", "_indigenous")), .) %>%
   gather(., type, total_area, total_area_black, total_area_indigenous) %>%
-  mutate(., type = as.factor(type)) %>% mutate(., type = fct_recode(type, "Comunidades Negras" = "total_area_black", 
-                                                                   "Resguardos Indígenas" = "total_area_indigenous"),
+  mutate(., type = as.factor(type)) %>% mutate(., type = fct_recode(type, "Black Communities" = "total_area_black", 
+                                                                   "Indigenous Reserves" = "total_area_indigenous"),
                                                STATUS_YR = as.integer(STATUS_YR))
   
 
@@ -75,12 +101,13 @@ regional <- c("Distritos De Conservacion De Suelos",
               "Parque Natural Regional",
               "Reservas Forestales Protectoras Regionales",
               " A\u0081reas De Recreacion")
+private <- c("Reserva Natural de la Sociedad Civil")
 
 
 parks <- natural_parks[[2]]@data %>%
-  mutate(., area = gArea(natural_parks[[2]], byid = T) / 1e6) %>%
-  mutate(., regional = ifelse(DESIG %in% regional, 1, 0)) %>%
-  mutate(regional = as.factor(regional)) %>% mutate(.,type = fct_recode(regional, Regional = "1", Nacional = "0")) %>%
+  mutate(area = gArea(natural_parks[[2]], byid = T) / 1e6) %>%
+  mutate(type = ifelse(DESIG %in% regional, 'Regional', 
+                       ifelse(DESIG %in% private, 'Private', 'National'))) %>%
   group_by(STATUS_YR, type) %>%
   summarize(total_area = sum(area))
 
@@ -90,21 +117,17 @@ all <- rbind(as.data.frame(parks), territories) %>%
   mutate(total_area = ifelse(is.na(total_area), 0, total_area)) %>%
   mutate(cumsum = ave(total_area, type, FUN = cumsum)) %>%
   mutate(cumsum = round(cumsum, 4)) %>%
+  mutate(STATUS_YR = as.numeric(STATUS_YR)) %>%
   arrange(STATUS_YR)
-# 
-# black <- territories[, 1:2] %>%
-#   mutate(total_area_black = ifelse(is.na(total_area_black), 0, total_area_black)) %>%
-#   mutate(cumsum = ave(total_area_black, FUN = cumsum)) %>%
-#   mutate(cumsum = round(cumsum, 4)) %>% mutate(STATUS_YR = as.numeric(STATUS_YR)) %>%
-#   arrange(STATUS_YR) %>% filter(STATUS_YR >= 1993)
 
+# Get graph
 
 setwd("~/Dropbox/BANREP/Deforestacion/Results/Graphs:Misc/")
 g <- ggplot(all, aes(y = cumsum / 1000, x = STATUS_YR, colour = type))
 g <- g + geom_line(size = 1)
-g <- g + labs(x="Año", y = expression(Area~(miles~de~km^{2})))
-g <- g + scale_colour_discrete(name = "Área Protegida") 
-g <- g + scale_x_continuous(limits = c(1940, 2014), breaks = seq(1940, 2014, by = 5))
+g <- g + labs(x="Year", y = expression(Area~(1000~km^{2})))
+g <- g + scale_colour_discrete(name = "Type of Protected Area") 
+g <- g + scale_x_continuous(limits = c(1940, 2016), breaks = seq(1940, 2016, by = 5))
 g <- g + geom_vline(xintercept = 2000, colour="gray", linetype = "longdash")
 g <- g + theme_bw()
 g <- g + theme(legend.position = c(.15, .85))
@@ -113,72 +136,216 @@ g
 ggsave(str_c("total_areas_geomarea.pdf"), width=30, height=20, units="cm")
 
 
-setwd("~/Dropbox/BANREP/Pacifico/Entregas/")
-g <- ggplot(black, aes(y = cumsum / 1000, x = STATUS_YR))
-g <- g + geom_line(size = 1)
-g <- g + labs(x = "Year", y = expression(Area~(thousands~of~km^{2})))
-# g <- g + scale_colour_discrete(name = "Área Protegida")
-g <- g + scale_x_continuous(limits = c(1990, 2015), breaks = seq(1990, 2015, by = 5))
-g <- g + scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, by = 10))
-# g <- g + geom_vline(xintercept = 2000, colour="gray", linetype = "longdash")
-g <- g + theme_bw()
-# g <- g + theme(legend.position = c(.15, .85))
-g <- g + theme(axis.text = element_text(size = 12), axis.title = element_text(size = 14))
-g
-ggsave(str_c("total_black_geomarea.pdf"), width=30, height=20, units="cm")
+##############################################################################
+##################### TABLE 1: ANNUAL DATA PER AREA ##########################
+##############################################################################
+
+##############################################################################
+################# TOTAL DEFORESTATION (PARKS & TERRITORIES) ##################
+################################ FROM RASTERS ################################
+##############################################################################
+
+list_areas <- c(natural_parks[[1]], indigenous_territories, black_territories)
+
+get_raster_local_cals <- function(shape, raster, var_name, ...){
+  shape_meters <- shape %>% 
+    spTransform(CRS=CRS("+init=epsg:3857")) 
+  
+  # Make calculations and return sp object
+  beginCluster(detectCores() - 1)
+  calc_polygons_vals <- raster::extract(x = raster,
+                                   y = shape,
+                                   fun = sum, 
+                                   na.rm = T,
+                                   df = T,
+                                   sp = T)
+  
+  endCluster()
+  
+  
+  
+  # Retrive df and change names to a normal ones
+  new_names <- str_c(var_name, c('baseline', c(2001:2016)), sep = '_')
+  old_names <- dplyr::select(calc_polygons_vals, starts_with('loss')) %>% colnames()
+  
+  # Totals
+  total <- calc_polygons_vals %>% 
+    data.table::setnames(., new = new_names, 
+                            old= old_names) %>%
+    mutate(., area_km2 = gArea(shape_meters, byid = T) /1e6)
+}
 
 
-
-#Total deforestation year (total)
-
-#Municipal deforestation (2001 - 2016)  
-beginCluster(detectCores() - 1)
-defo_year_muni <- raster::extract(x = res, 
-                                  y = colombia_municipios_cont, 
-                                  fun = sum, na.rm = T, df = T,
-                                  sp = T)
-
-endCluster()
+# Get individual year deforestation
+total_deforestation_polygon <- lapply(list_areas, get_raster_local_cals,
+                              raster = res, 
+                              var_name = 'defo')
 
 
-new_names <- str_c("defo", c(2000:2016), sep = "_")
-old_names <- dplyr::select(defo_year_muni@data, starts_with("loss")) %>%
-  colnames()
+saveRDS(total_deforestation_polygon, 'deforestation_area_polygon.rds')
 
-defo_year_muni_total <- defo_year_muni@data %>%
-  data.table::setnames(., new = new_names, old= old_names)
+###############################################################################
+################################# OPTIONAL ####################################
+###############################################################################
 
-write.csv(defo_year_muni_total, "deforectacion_municipal_2000_2016.csv")
+# Merge with shapefile data (in case sp = F is activated in the func)
+total_defo_polygon_sp_data <- mapply(function(shape, extracted){
+  shape_data <- shape@data
+  shape_data_id <- shape_data %>% 
+    mutate(ID = as.numeric(row.names(extracted)))
+  
+  if(dim(shape_data_id)[1] == dim(extracted)[1]){
+    print('Good!')
+  }
+  
+  merge_data <- merge(shape_data_id, extracted, by='ID')
+}, shape = list_areas, extracted = total_deforestation_polygon)
 
-defo_year_total <- defo %>%
-  select(loss_year_brick_1km.2:loss_year_brick_1km.13) %>%
-  colSums(.) %>%
-  data.frame( defo_year = ., year = (2001:2012)) %>%
-  mutate(defo_year_ha = .$"defo_year" * 100)  %>%
-  select(., year, defo_year_ha) %>%
-  setNames(., c("year", "defo_year"))
+###############################################################################
 
+# Aggregate area data for natural parks  
+regional <- c("Distritos De Conservacion De Suelos",
+              "Distritos Regionales De Manejo Integrado",
+              "Parque Natural Regional",
+              "Reservas Forestales Protectoras Regionales",
+              " A\u0081reas De Recreacion")
+private <- c("Reserva Natural de la Sociedad Civil")
 
-# Filter defo by group
+# Sum and aggreagate by type of area for national parks
+total_deforestation_parks <- total_defo_polygon_sp_data[[1]] %>%
+  mutate(type = ifelse(DESIG %in% regional, 'Regional', 
+                       ifelse(DESIG %in% private, 'Private', 'National'))) %>%
+  dplyr::select(., type, GIS_AREA, area_km2, starts_with('defo'), -defo_baseline) %>% 
+  group_by(type) %>%
+  summarize_all(funs(sum)) %>%
+  mutate(total_defo = rowSums(.[4:length(.)]),
+         defo_rate = total_defo/area_km2,
+         defo_rate_area_year = defo_rate/16,
+         total_defo_year = total_defo/16) %>%
+  dplyr::select(type, total_defo_year, defo_rate_area_year)
+  
 
-ids <- lapply(defo_dist_all, function(x){
-  filter(x, treatment == 1) %>%
-    .[, 1]
+# Sum and aggreagte by territory (indigenous and black communities)
+total_deforestation_terr <- lapply(total_defo_polygon_sp_data[3:4], function(x){
+  x %>%
+  dplyr::select(., area_km2, starts_with('defo'), -defo_baseline) %>%
+    summarize_all(funs(sum)) %>%
+    mutate(total_defo = rowSums(.[2:length(.)]),
+           defo_rate = total_defo/area_km2,
+           defo_rate_area_year = defo_rate/16,
+           total_defo_year = total_defo/16) %>%
+    dplyr::select(total_defo_year, defo_rate_area_year)
 })
+    
+##############################################################################
+############# TOTAL COCA AND GOLD MINING (PARKS & TERRITORIES) ###############
+##############################################################################
+
+##############################################################################
+##############################    COCA      ##################################
+##############################################################################
 
 
-defo_year_group <- lapply(ids, function(x){
-  defo[defo$ID %in% x, ] %>%
-    select(loss_year_brick_1km.2:loss_year_brick_1km.13) %>%
-    colSums(.) %>%
-    data.frame(defo_year = ., year = (2001:2012)) %>%
-    mutate(defo_year_ha = .$"defo_year" * 100) %>%
-    select(., year, defo_year_ha) %>%
-    setNames(., c("year", "defo_year"))
+# Get updated distances (remember this databases go until 2000)
+
+get_raster_local_cals <- function(shape, raster, var_name, ...){
+  shape_meters <- shape %>% 
+    spTransform(CRS=CRS("+init=epsg:3857")) 
+  
+  # Make calculations and return sp object
+  beginCluster(detectCores() - 1)
+  calc_polygons_vals <- raster::extract(x = raster,
+                                        y = shape,
+                                        fun = sum, 
+                                        na.rm = T,
+                                        df = T,
+                                        sp = T)
+  
+  endCluster()
+  
+  # Totals
+  total <- calc_polygons_vals@data %>%
+    mutate(., area_km2 = gArea(shape_meters, byid = T) /1e6)
+}
+
+# Get coca data
+res <- brick('SIMCI/simci_coca_agg.tif')
+
+total_coca_polygon <- lapply(list_areas, get_raster_local_cals,
+                                      raster = res)
+saveRDS(total_coca_polygon, 'coca_area_polygon.rds')
+
+# Get gold data
+res <- brick('SIMCI/illegal_mining_EVOA_2014.tif')
+
+total_gold_polygon <- lapply(list_areas, get_raster_local_cals,
+                             raster = res)
+saveRDS(total_gold_polygon, 'gold_area_polygon.rds')
+
+# Sum and aggreagate by type of area for national parks
+total_coca_parks <- total_coca_polygon[[1]] %>%
+  mutate(type = ifelse(DESIG %in% regional, 'Regional', 
+                       ifelse(DESIG %in% private, 'Private', 'National'))) %>%
+  dplyr::select(., type, GIS_AREA, area_km2, 
+                num_range('simci_coca_agg.', 1:16, width = 1)) %>% 
+  group_by(type) %>%
+  summarize_all(funs(sum)) %>%
+  mutate(total_coca = rowMeans(.[4:length(.)]),
+         coca_rate = total_coca/area_km2,
+         coca_rate_area_year = coca_rate/16,
+         total_coca_year = total_coca/16) %>%
+  dplyr::select(type, total_coca_year, coca_rate_area_year)
+
+
+# Sum and aggreagte by territory (indigenous and black communities)
+total_coca_terr <- lapply(total_coca_polygon[3:4], function(x){
+  x %>%
+    dplyr::select(., area_km2, 
+                  num_range('simci_coca_agg.', 1:16, width = 1)) %>%
+    summarize_all(funs(sum)) %>%
+    mutate(total_coca = rowMeans(.[2:length(.)]),
+           coca_rate = total_coca/area_km2,
+           coca_rate_area_year = coca_rate/16,
+           total_coca_year = total_coca/16) %>%
+    dplyr::select(total_coca_year, coca_rate_area_year)
 }) 
-   
 
-defo_year_group <- append(list(defo_year_total), defo_year_group) 
+
+##############################################################################
+##############################    GOLD      ##################################
+##############################################################################
+
+# Get coca data
+res <- brick('SIMCI/illegal_mining_EVOA_2014.tif')
+
+total_gold_polygon <- lapply(list_areas, get_raster_local_cals,
+                             raster = res)
+saveRDS(total_gold_polygon, 'gold_area_polygon.rds')
+
+# Sum and aggreagate by type of area for national parks
+total_gold_parks <- total_gold_polygon[[1]] %>%
+  mutate(type = ifelse(DESIG %in% regional, 'Regional', 
+                       ifelse(DESIG %in% private, 'Private', 'National'))) %>%
+  dplyr::select(., type, GIS_AREA, area_km2, illegal_mining_EVOA_2014) %>% 
+  group_by(type) %>%
+  summarize_all(funs(sum(., na.rm=T))) %>%
+  mutate(total_gold = illegal_mining_EVOA_2014/100,
+         gold_rate = total_gold/area_km2) %>%
+  dplyr::select(type, total_gold, gold_rate) %>% 
+  data.frame()
+
+
+# Sum and aggreagte by territory (indigenous and black communities)
+total_gold_terr <- lapply(total_gold_polygon[2:3], function(x){
+  x %>%
+    dplyr::select(., area_km2, illegal_mining_EVOA_2014) %>%
+    summarize_all(funs(sum(., na.rm = T))) %>%
+    mutate(total_gold = illegal_mining_EVOA_2014/100,
+           gold_rate = total_gold/area_km2) %>%
+    dplyr::select(total_gold, gold_rate) %>%
+    data.frame()
+}) 
+
 
 setwd("~/Dropbox/BANREP/Deforestacion/Results/Graphs:Misc/")
 g <- ggplot(defo_year_group[[1]], aes(y = defo_year, x =  as.numeric(year)))
