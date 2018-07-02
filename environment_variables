@@ -7,6 +7,7 @@ username=$(whoami)
 cd 
 if [[ ! -d deforestacion ]]
 then 
+  echo "Type path to repo:"
   read dir_repo
   export ROOT_FOLDER=$dir_repo
 else 
@@ -26,6 +27,7 @@ export OUTPUT_FOLDER="/Users/"$username"/Dropbox/"$dir_data"/Results"
 #R has its own environment profile Renviron
 if [[ $OSTYPE = darwin* ]]
 then
+  touch .Renviron
   for var in '$ROOT_FOLDER' '$PROJ_FOLDER' '$DATA_FOLDER' '$OUTPUT_FOLDER'
   do
     eval echo "\$var=${var}" | cut -d '$' -f 2 >> deforestacion/.Renviron
