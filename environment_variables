@@ -27,7 +27,7 @@ export OUTPUT_FOLDER="/Users/"$username"/Dropbox/"$dir_data"/Results"
 #R has its own environment profile Renviron
 if [[ $OSTYPE = darwin* ]]
 then
-  touch .Renviron
+  touch $ROOT_FOLDER/.Renviron
   for var in '$ROOT_FOLDER' '$PROJ_FOLDER' '$DATA_FOLDER' '$OUTPUT_FOLDER'
   do
     eval echo "\$var=${var}" | cut -d '$' -f 2 >> $ROOT_FOLDER/.Renviron
