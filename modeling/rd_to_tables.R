@@ -13,7 +13,6 @@ library(plyr)
 library(dplyr)
 library(data.table)
 library(rdrobust)
-library(rdd)
 library(stringr)
 library(stargazer)
 library(foreign)
@@ -146,7 +145,7 @@ df_robust_mining <- rd_to_df_2(rd_robust_2_mining,
 ################################## LIGHTS ##################################
 
 list_files <- list.files("RD/Models/new_results", full.names = T)
-  rd_robust_coca_het_effects_lights <- list_files[str_detect(list_files, regex("robust_clump0_coca|robust_clump1_coca"))] 
+rd_robust_coca_het_effects_lights <- list_files[str_detect(list_files, regex("robust_clump0_coca|robust_clump1_coca"))] 
 
 list_df <- c(defo_dist[1:2], defo_dist_terr)
 df_clumps_coca_list <- lapply(rd_robust_coca_het_effects_lights, function(x){
@@ -184,11 +183,10 @@ df_roads_list <- lapply(rd_robust_het_effects_roads, function(x){
 ################################## LIGHTS ##################################
 
 list_files <- list.files("RD/Models/new_results", full.names = T)
-rd_robust_coca_het_effects_lights <- list_files[str_detect(list_files, regex("robust_clump0_mining|robust_clump1_mining"))] %>%
-  lapply(., readRDS) 
+rd_robust_mining_het_effects_lights <- list_files[str_detect(list_files, regex("robust_clump0_mining|robust_clump1_mining"))] 
 
 list_df <- c(defo_dist[1:2], defo_dist_terr)
-df_clumps_coca_list <- lapply(rd_robust_coca_het_effects_lights, function(x){
+df_clumps_coca_list <- lapply(rd_robust_mining_het_effects_lights, function(x){
   rd_to_df_2(x, 
              control_df = list_df, 
              names = c("All", "National", "Black", "Ingigenous"),

@@ -290,9 +290,9 @@ total_coca_parks <- total_coca_polygon[[1]] %>%
                 num_range('simci_coca_agg.', 1:16, width = 1)) %>% 
   group_by(type) %>%
   summarize_all(funs(sum)) %>%
-  mutate(total_coca = rowMeans(.[4:length(.)]),
+  mutate(total_coca = rowMeans(.[4:length(.)])/100,
          coca_rate = total_coca/area_km2,
-         coca_rate_area_year = coca_rate/16,
+         coca_rate_area_year = (coca_rate/16) * 100,
          total_coca_year = total_coca/16) %>%
   dplyr::select(type, total_coca_year, coca_rate_area_year)
 
@@ -303,7 +303,7 @@ total_coca_terr <- lapply(total_coca_polygon[3:4], function(x){
     dplyr::select(., area_km2, 
                   num_range('simci_coca_agg.', 1:16, width = 1)) %>%
     summarize_all(funs(sum)) %>%
-    mutate(total_coca = rowMeans(.[2:length(.)]),
+    mutate(total_coca = rowMeans(.[2:length(.)])/100,
            coca_rate = total_coca/area_km2,
            coca_rate_area_year = coca_rate/16,
            total_coca_year = total_coca/16) %>%
