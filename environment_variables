@@ -2,18 +2,11 @@
 # This file makes sharing and reproducibility easier :) 
 
 username=$(whoami)
+pwd=$(pwd) 
 
 # location of code repository "path/to/repo/"
-cd 
-if [[ ! -d deforestacion ]]
-then 
-  echo "Type path to repo:"
-  read dir_repo
-  export ROOT_FOLDER=$dir_repo
-else 
-  echo "Repo folder is in system ROOT: Users/"$username
-  export ROOT_FOLDER="/Users/"$username"/deforestacion"
-fi
+cd $pwd
+export ROOT_FOLDER=$pwd
 
 # location of data [in dropbox] "dropbox/path/to/data"
 echo "Write the path to project folder within Dropbox"
@@ -24,7 +17,7 @@ export DATA_FOLDER="/Users/"$username"/Dropbox/"$dir_data"/Datos"
 # location of model outputs
 export OUTPUT_FOLDER="/Users/"$username"/Dropbox/"$dir_data"/Results"
 
-#R has its own environment profile Renviron
+#R has its own environment profile .Renviron
 if [[ $OSTYPE = darwin* ]]
 then
   touch $ROOT_FOLDER/.Renviron
