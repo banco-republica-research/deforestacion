@@ -7,19 +7,6 @@
 ##############################################################################################
 ##############################################################################################
 
-library(plyr)
-library(dplyr)
-library(data.table)
-library(rdrobust)
-library(stringr)
-library(stargazer)
-library(foreign)
-library(ggplot2)
-library(magrittr)
-library(foreign)
-library(stringr)
-
-
 # Set directories
 setwd(Sys.getenv("DATA_FOLDER"))
 

@@ -22,11 +22,10 @@ library(foreign)
 library(stringr)
 library(rlang)
 
-
 # Source tables functions
 setwd(Sys.getenv("ROOT_FOLDER"))
 source("R/func_tables.R")
-source("modeling/merge_datasets.R")
+# source("modeling/merge_datasets.R")
 
 # Set directories
 setwd(paste0(Sys.getenv("OUTPUT_FOLDER")))
@@ -103,6 +102,22 @@ df_roads_list <- lapply(rd_robust_het_effects_roads, function(x){
              latex = TRUE) %>% .[c(2, 3, 5, 4)]
 })
 
+
+
+################################ New municipalities ##################################
+
+list_files <- list.files("RD/Models/new_results", full.names = T)
+rd_robust_het_effects_inst <- list_files[str_detect(list_files, regex("robust_inst0\\.|robust_inst1\\."))] 
+
+list_df <- c(defo_dist[2:3], defo_dist_terr)
+df_conflict_list <- lapply(rd_robust_het_effects_inst, function(x){
+  rd_to_df_2(x, 
+             control_df = list_df, 
+             names = c("All", "National", "Regional", "Black", "Ingigenous"),
+             digits = 4,
+             baseline_variable = "loss_sum",
+             latex = TRUE) %>% .[c(2, 3, 5, 4)]
+})
 
 ###############################################################################
 ####### RESULTS DATAFRAME PER TABLE: COCA CROPS FOR EACH PROTECTED AREA #######

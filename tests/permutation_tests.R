@@ -36,7 +36,7 @@ setwd(Sys.getenv("OUTPUT_FOLDER"))
 # Define function parameters 
 
 list_df <- c(defo_dist, defo_dist_terr)
-vars <- c('loss_sum', 'altura_tile_30arc', 'slope', 'roughness', 'prec', 'treecover_agg', 'sq_1km.1', 'ao_crea')
+vars <- c('loss_sum', 'altura_tile_30arc', 'slope', 'roughness', 'prec', 'treecover_agg', 'sq_1km.1')
 areas <- c("All", "National", "Regional", "Black", "Indigenous")
 discontinuity <- 'dist_disc'
   
@@ -45,7 +45,7 @@ perm_test <- perm_test_list(list_df = list_df ,
                               names = areas,
                               covs = vars,
                               z = discontinuity,
-                              n.perm = 5000,
+                              n.perm = 1000,
                               c = 0)
 
 
