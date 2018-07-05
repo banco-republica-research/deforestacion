@@ -23,7 +23,7 @@ setwd(Sys.getenv("DATA_FOLDER"))
 
 # Path viejo
 # setwd("/Users/leonardobonilla/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
-setwd("D:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
+# setwd("D:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
 
 
 ###############################################################################
@@ -297,7 +297,7 @@ for(d in c(2:2)) {
 
 ########################################################
 
-# Miscellaneous 
+# Miscellaneous (old)
 
 ########################################################
 

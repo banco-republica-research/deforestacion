@@ -12,7 +12,7 @@ library(magrittr)
 library(rlist)
 library(stringi)
 
-# mac
+# mac (old)
 <<<<<<< HEAD
 setwd("D:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/")
 # setwd("/Users/leonardobonilla/Dropbox/CEER v2/Papers/Deforestacion/")

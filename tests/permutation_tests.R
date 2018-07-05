@@ -23,12 +23,12 @@ library(foreign)
 library(stringr)
 library(rlang)
 library(tidyr)
+library(RATest)
 
 # Source tables functions
 setwd(Sys.getenv("ROOT_FOLDER"))
 source("R/rd_functions.R")
 source("modeling/merge_datasets.R")
-
 
 # Set directories
 setwd(Sys.getenv("OUTPUT_FOLDER"))
@@ -36,7 +36,7 @@ setwd(Sys.getenv("OUTPUT_FOLDER"))
 # Define function parameters 
 
 list_df <- c(defo_dist, defo_dist_terr)
-vars <- c('loss_sum', 'altura_tile_30arc', 'slope', 'roughness', 'prec', 'treecover_agg', 'sq_1km.1')
+vars <- c('loss_sum', 'altura_tile_30arc', 'slope', 'roughness', 'prec', 'treecover_agg', 'sq_1km.1', 'ao_crea')
 areas <- c("All", "National", "Regional", "Black", "Indigenous")
 discontinuity <- 'dist_disc'
   
