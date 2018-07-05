@@ -152,7 +152,7 @@ rd_to_df_2 <- function(list_rd_files,
     std_err = x$Estimate[1, 'se.rb']
     t_stat = x$Estimate[, 'tau.bc']/x$Estimate[, 'se.rb']
     p_value = 2 * pnorm(-abs(t_stat))
-    bw = xc$bws[1]
+    bw = x$bws[1]
     n_eff = x$Nh[1] + x$Nh[2]
     
     # Additional stats
