@@ -129,7 +129,7 @@ rd_robust_fixed_five_ctrl <-  lapply(list_df, function(x){
   rdrobust(
     y = x$loss_sum,
     x = x$dist_disc,
-    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$clumps),
+    covs = cbind(x$altura_tile_30arc,  x$roughness, x$clumps),
     cluster = x$ID,
     all = T,
     h = 5
@@ -140,7 +140,7 @@ rd_robust_fixed_ten_ctrl <-  lapply(list_df, function(x){
   rdrobust(
     y = x$loss_sum,
     x = x$dist_disc,
-    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$clumps),
+    covs = cbind(x$altura_tile_30arc, x$roughness, x$clumps),
     cluster = x$ID,
     all = T,
     h = 10
@@ -205,7 +205,7 @@ mapply(function(x, type){
 
 # Regression with optimal bw and heterogeneus effects
 het_reg <- lapply(defo_dist, function(x){
-  lm(formula = loss_sum ~ treatment + poly(dist_disc/1000, 2) + altura_tile_30arc + roughness + slope, data = x,
+  lm(formula = loss_sum ~ treatment + poly(dist_disc/1000, 2) + altura_tile_30arc + roughness, data = x,
      subset = dist <= 5000)
 })
 het_reg_clust <- lapply(het_reg, cluster.vcov, ~ ID)
@@ -215,7 +215,7 @@ stargazer(het_reg)
 
 
 het_reg_terr <- lapply(defo_dist_terr, function(x){
-  lm(formula = loss_sum * 100 ~ treatment*clumps + poly(dist_disc/1000, 2) + altura_tile_30arc + roughness + slope, data = x,
+  lm(formula = loss_sum * 100 ~ treatment*clumps + poly(dist_disc/1000, 2) + altura_tile_30arc + roughness, data = x,
      subset = dist <= 5000)
 })
 het_reg_clust_terr <- lapply(het_reg_terr, cluster.vcov, ~ ID)
@@ -225,7 +225,7 @@ stargazer(naive_reg_terr)
 
 
 het_reg_terr <- lapply(defo_dist_terr, function(x){
-  lm(formula = loss_sum * 100 ~ treatment*clumps + poly(dist_disc/1000, 2):clumps + altura_tile_30arc:clumps + roughness:clumps + slope:clumps, data = x,
+  lm(formula = loss_sum * 100 ~ treatment*clumps + poly(dist_disc/1000, 2):clumps + altura_tile_30arc:clumps + roughness:clumps, data = x,
      subset = dist <= 5000)
 })
 het_reg_clust_terr <- lapply(het_reg_terr, cluster.vcov, ~ ID)

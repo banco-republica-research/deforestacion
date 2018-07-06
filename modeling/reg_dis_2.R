@@ -155,7 +155,7 @@ rd_robust_fixed_five_ctrl <-  lapply(list_df, function(x){
   rdrobust(
     y = x$loss_sum,
     x = x$dist_disc,
-    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$clumps),
+    covs = cbind(x$altura_tile_30arc, x$roughness, x$clumps),
     vce = "nn",
     all = T,
     h = 5
@@ -166,7 +166,7 @@ rd_robust_fixed_ten_ctrl <-  lapply(list_df, function(x){
   rdrobust(
     y = x$loss_sum,
     x = x$dist_disc,
-    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$clumps),
+    covs = cbind(x$altura_tile_30arc, x$roughness, x$clumps),
     vce = "nn",
     all = T,
     h = 10
@@ -190,7 +190,7 @@ rd_robust_parks_2_ctrl <- lapply(defo_dist, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness),
+    covs = cbind(park$altura_tile_30arc, park$roughness),
     vce = "nn",
     # nnmatch = 3,
     all = T
@@ -202,7 +202,7 @@ rd_robust_terr_2_ctrl <- lapply(defo_dist_terr, function(terr){
   rdrobust(
     y = terr$loss_sum,
     x = terr$dist_disc,
-    covs = cbind(terr$altura_tile_30arc, terr$slope, terr$roughness),
+    covs = cbind(terr$altura_tile_30arc, terr$roughness),
     vce = "nn",
     nnmatch = 3,
     all = T
@@ -243,7 +243,7 @@ rd_robust_fixed_five_ctrl <-  lapply(list_df, function(x){
   rdrobust(
     y = x$loss_sum,
     x = x$dist_disc,
-    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$clumps),
+    covs = cbind(x$altura_tile_30arc, x$roughness, x$clumps),
     cluster = x$ID,
     all = T,
     h = 5
@@ -254,7 +254,7 @@ rd_robust_fixed_ten_ctrl <-  lapply(list_df, function(x){
   rdrobust(
     y = x$loss_sum,
     x = x$dist_disc,
-    covs = cbind(x$altura_tile_30arc, x$slope, x$roughness, x$clumps),
+    covs = cbind(x$altura_tile_30arc, x$roughness, x$clumps),
     cluster = x$ID,
     all = T,
     h = 10

@@ -78,7 +78,7 @@ rd_robust_parks_2_ctrl <- lapply(defo_dist, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, park$clumps_1, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     nnmatch = 3,
@@ -91,7 +91,7 @@ rd_robust_terr_2_ctrl <- lapply(defo_dist_terr, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, park$clumps_1, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     all = T
@@ -116,7 +116,7 @@ rd_robust_parks_2_coca <- lapply(defo_dist[1:2], function(park){
   rdrobust(
     y = park$coca_agg,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
                  park$sq_1km.1, park$clumps_1, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     nnmatch = 3,
@@ -128,7 +128,7 @@ rd_robust_terr_2_coca <- lapply(defo_dist_terr, function(park){
   rdrobust(
     y = park$coca_agg,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
                  park$sq_1km.1, park$clumps_1, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     nnmatch = 3,
@@ -155,7 +155,7 @@ rd_robust_parks_2_mining <- lapply(defo_dist, function(park){
   rdrobust(
     y = park$illegal_mining_EVOA_2014,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
                  park$sq_1km.1, park$clumps_1, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     all = T
@@ -166,7 +166,7 @@ rd_robust_terr_2_mining <- lapply(defo_dist_terr, function(park){
   rdrobust(
     y = park$illegal_mining_EVOA_2014,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
                  park$sq_1km.1, park$clumps_1, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     all = T
