@@ -46,7 +46,7 @@ rd_robust_clump1 <- lapply(list_df, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     nnmatch = 8,
@@ -62,7 +62,7 @@ rd_robust_clump0 <- lapply(list_df, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     nnmatch = 8,
@@ -86,7 +86,7 @@ rd_robust_clump1_2 <- lapply(list_df, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     nnmatch = 3,
@@ -101,7 +101,7 @@ rd_robust_clump0_2 <- lapply(list_df, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     nnmatch = 3,
@@ -125,7 +125,7 @@ rd_robust_inst0 <- lapply(list_df, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     nnmatch = 3,
@@ -139,7 +139,7 @@ rd_robust_inst1 <- lapply(list_df, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     nnmatch = 3,
@@ -161,7 +161,7 @@ rd_robust_hom0 <- lapply(list_df, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     nnmatch = 3,
@@ -175,7 +175,7 @@ rd_robust_hom1 <- lapply(list_df, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     nnmatch = 3,
@@ -198,7 +198,7 @@ rd_robust_conflict0 <- lapply(list_df, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     nnmatch = 3,
@@ -212,7 +212,7 @@ rd_robust_conflict1 <- lapply(list_df, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     nnmatch = 3,
@@ -238,7 +238,7 @@ rd_robust_clump1_coca <- lapply(list_df, function(park){
   rdrobust(
     y = park$coca_agg,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     nnmatch = 8,
@@ -254,7 +254,7 @@ rd_robust_clump0_coca <- lapply(list_df, function(park){
   rdrobust(
     y = park$coca_agg,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     nnmatch = 3,
@@ -277,7 +277,7 @@ rd_robust_roads1_coca <- lapply(list_df, function(park){
   rdrobust(
     y = park$coca_agg,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     nnmatch = 3,
@@ -292,7 +292,7 @@ rd_robust_roads0_coca <- lapply(list_df, function(park){
   rdrobust(
     y = park$coca_agg,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     nnmatch = 3,
@@ -323,7 +323,7 @@ rd_robust_clump1_mining <- lapply(list_df, function(park){
   rdrobust(
     y = park$illegal_mining_EVOA_2014,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     nnmatch = 3,
@@ -339,7 +339,7 @@ rd_robust_clump0_mining <- lapply(list_df, function(park){
   rdrobust(
     y = park$illegal_mining_EVOA_2014,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     nnmatch = 3,
@@ -367,7 +367,7 @@ rd_robust_clump1_2 <- lapply(list_df, function(park){
   rdrobust(
     y = park$illegal_mining_EVOA_2014,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     nnmatch = 3,
@@ -384,7 +384,7 @@ rd_robust_clump0_2 <- lapply(list_df, function(park){
   rdrobust(
     y = park$illegal_mining_EVOA_2014,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     nnmatch = 3,

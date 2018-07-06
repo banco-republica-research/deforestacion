@@ -35,7 +35,7 @@ for(i in distances_bw[[1]]){
     rdrobust(
       y = list_df[[1]]$loss_sum,
       x = list_df[[1]]$dist_disc,
-      covs = cbind(list_df[[1]]$altura_tile_30arc, list_df[[1]]$roughness, list_df[[1]]$prec, 
+      covs = cbind(list_df[[1]]$altura_tile_30arc, list_df[[1]]$slope, list_df[[1]]$roughness, list_df[[1]]$prec, 
                    list_df[[1]]$sq_1km.1, list_df[[1]]$treecover_agg, list_df[[1]]$clumps_1),
       vce = "hc1",
       all = T,
@@ -50,7 +50,7 @@ for(i in distances_bw[[2]]){
     rdrobust(
       y = list_df[[2]]$loss_sum,
       x = list_df[[2]]$dist_disc,
-      covs = cbind(list_df[[2]]$altura_tile_30arc, list_df[[2]]$roughness, list_df[[2]]$prec, 
+      covs = cbind(list_df[[2]]$altura_tile_30arc, list_df[[2]]$slope, list_df[[2]]$roughness, list_df[[2]]$prec, 
                    list_df[[2]]$sq_1km.1, list_df[[2]]$treecover_agg, list_df[[2]]$clumps_1),
       vce = "hc1",
       all = T,
@@ -65,7 +65,7 @@ for(i in distances_bw[[3]]){
     rdrobust(
       y = list_df[[3]]$loss_sum,
       x = list_df[[3]]$dist_disc,
-      covs = cbind(list_df[[3]]$altura_tile_30arc, list_df[[3]]$roughness, list_df[[3]]$prec, 
+      covs = cbind(list_df[[3]]$altura_tile_30arc, list_df[[3]]$slope, list_df[[3]]$roughness, list_df[[3]]$prec, 
                    list_df[[3]]$sq_1km.1, list_df[[3]]$treecover_agg, list_df[[3]]$clumps_1),
       vce = "hc1",
       all = T,
@@ -80,7 +80,7 @@ for(i in distances_bw[[4]]){
     rdrobust(
       y = list_df[[4]]$loss_sum,
       x = list_df[[4]]$dist_disc,
-      covs = cbind(list_df[[4]]$altura_tile_30arc, list_df[[4]]$roughness, list_df[[4]]$prec, 
+      covs = cbind(list_df[[4]]$altura_tile_30arc, list_df[[4]]$slope, list_df[[4]]$roughness, list_df[[4]]$prec, 
                    list_df[[4]]$sq_1km.1, list_df[[4]]$treecover_agg, list_df[[4]]$clumps_1),
       vce = "hc1",
       all = T,

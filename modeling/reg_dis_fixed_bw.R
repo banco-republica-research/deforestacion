@@ -76,7 +76,7 @@ rd_robust_fixed_five_ctrl_2 <-  lapply(list_df, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, park$clumps_1, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     all = T,
@@ -88,7 +88,7 @@ rd_robust_fixed_ten_ctrl_2 <-  lapply(list_df, function(park){
   rdrobust(
     y = park$loss_sum,
     x = park$dist_disc,
-    covs = cbind(park$altura_tile_30arc, park$roughness, park$prec, 
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, park$clumps_1, as.factor(as.character(park$buffer_id))),
     vce = "nn",
     all = T,

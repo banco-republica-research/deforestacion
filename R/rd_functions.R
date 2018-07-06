@@ -137,7 +137,7 @@ rd_placebos <- function(df, start, end, step=0.5, ...){
     results[[index]] <- rdrobust(
       y = df$loss_sum,
       x = df$dist_disc,
-      covs = cbind(df$altura_tile_30arc, df$roughness, df$prec, 
+      covs = cbind(df$altura_tile_30arc, df$slope, df$roughness, df$prec, 
                    df$sq_1km.1, df$treecover_agg),
       all = T,
       h = 5,
