@@ -37,7 +37,7 @@ setwd(Sys.getenv("OUTPUT_FOLDER"))
 
 list_df <- c(defo_dist[2:3], defo_dist_terr)
 areas <- c("National", "Regional", "Black", "Indigenous")
-vars <- c('altura_tile_30arc', 'roughness', 'prec', 'treecover_agg', 'sq_1km.1')
+vars <- c('altura_tile_30arc', 'roughness', 'prec', 'treecover_agg', 'sq_1km.1', 'slope')
 discontinuity <- 'dist_disc'
 
 # simple example
@@ -53,9 +53,10 @@ perm_test <- perm_test_list(list_df = list_df ,
                               names = areas,
                               covs = vars,
                               z = discontinuity,
-                              n = 10000,
+                              n = 20000,
                               c = 0)
 perm_test
+
 saveRDS(perm_test, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/perm_test.rds"))
 
 # Calculate descriptive stats for a 5km buffer 
