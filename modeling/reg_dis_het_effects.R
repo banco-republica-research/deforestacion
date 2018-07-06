@@ -185,7 +185,7 @@ saveRDS(rd_robust_roads0_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/ne
 ##############################################################################################
 
 counter <- 0
-list_df <- c(defo_dist[[1]], defo_dist_terr[[2]]) %>%
+list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
   lapply(., function(x) base::subset(x, clumps_5k == 1))
 rd_robust_clump1_mining <- lapply(list_df, function(park){
   counter <<- counter + 1
