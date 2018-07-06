@@ -221,6 +221,7 @@ df_roads_list <- lapply(rd_robust_het_effects_roads, function(x){
              control_df = list_df, 
              names = c("National", "Regional", "Black", "Ingigenous"),
              digits = 4,
+             baseline_variable = 'illegal_mining_EVOA_2014',
              latex = TRUE)
 })
 
