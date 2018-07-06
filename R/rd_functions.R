@@ -29,7 +29,7 @@ rd_robust <- function(df, x, y, nn, bw = NULL, covs_matrix = NULL){
 # '...' = other arguments passed to the RATest::RDperm function              ##
 ###############################################################################
 
-perm_test_list <- function(list_df, names, covs, z, c = 0, ...){
+perm_test_list <- function(list_df, names, covs, z, c, n){
       
       if(length(names) != length(list_df)){
         stop("Length of dataframes list do not coincide with the names one :/")
@@ -40,7 +40,7 @@ perm_test_list <- function(list_df, names, covs, z, c = 0, ...){
           p_test_element <- RATest::RDperm(W = covs,
                                            z = z,
                                            cutoff = c,
-                                           q_type = 'arot',
+                                           n.perm = n,
                                            data = x)
           return(p_test_element['results'])
         })
