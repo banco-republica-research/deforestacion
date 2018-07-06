@@ -8,7 +8,27 @@
 ##############################################################################################
 ##############################################################################################
 
+rm(list=ls())
+library(plyr)
+library(dplyr)
+library(data.table)
+library(rdrobust)
+library(rdd)
+library(stringr)
+library(stargazer)
+library(foreign)
+library(ggplot2)
+library(magrittr)
+library(foreign)
+library(stringr)
+library(rlang)
+library(tidyr)
+library(RATest)
 
+# Source tables functions
+setwd(Sys.getenv("ROOT_FOLDER"))
+source("R/rd_functions.R")
+source("modeling/merge_datasets.R")
 
 ##############################################################################################
 ###################################### 1. DEFORESTATION ######################################
@@ -89,9 +109,119 @@ rd_robust_clump0_2 <- lapply(list_df, function(park){
   )
 })
 
-saveRDS(rd_robust_clump0_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_roads0.rds"))
-saveRDS(rd_robust_clump1_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_roads1.rds"))
+saveRDS(rd_robust_clump0_2, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_roads0.rds"))
+saveRDS(rd_robust_clump1_2, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_roads1.rds"))
 
+
+##############################################################################################
+#################################### OPTIMAL ROBUST BANDWITHS ################################
+################ (Institutions:  {1: Municipality created before 1950}) ######################
+##############################################################################################
+
+
+list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, ao_crea <= 1950))
+rd_robust_inst0 <- lapply(list_df, function(park){
+  rdrobust(
+    y = park$loss_sum,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    nnmatch = 3,
+    all = T
+  )
+})
+
+list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, ao_crea > 1950))
+rd_robust_inst1 <- lapply(list_df, function(park){
+  rdrobust(
+    y = park$loss_sum,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    nnmatch = 3,
+    all = T
+  )
+})
+
+saveRDS(rd_robust_inst0, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_inst0.rds"))
+saveRDS(rd_robust_inst1, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_inst1.rds"))
+
+##############################################################################################
+#################################### OPTIMAL ROBUST BANDWITHS ################################
+##################### (Violence: {1: homicide rate > median pre-2000; 0 ow}) #################
+##############################################################################################
+
+list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, hom_q34 == 0))
+rd_robust_hom0 <- lapply(list_df, function(park){
+  rdrobust(
+    y = park$loss_sum,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    nnmatch = 3,
+    all = T
+  )
+})
+
+list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, hom_q34 == 1))
+rd_robust_hom1 <- lapply(list_df, function(park){
+  rdrobust(
+    y = park$loss_sum,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    nnmatch = 3,
+    all = T
+  )
+})
+
+saveRDS(rd_robust_hom0, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_hom0.rds"))
+saveRDS(rd_robust_hom1, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_hom1.rds"))
+
+##############################################################################################
+#################################### OPTIMAL ROBUST BANDWITHS ################################
+##################### (Conflict: {1: Presence illegal armed groups pre-2000}) ################
+##############################################################################################
+
+
+list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, pres_cerac_1 == 0))
+rd_robust_conflict0 <- lapply(list_df, function(park){
+  rdrobust(
+    y = park$loss_sum,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    nnmatch = 3,
+    all = T
+  )
+})
+
+list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, pres_cerac_1 == 1))
+rd_robust_conflict1 <- lapply(list_df, function(park){
+  rdrobust(
+    y = park$loss_sum,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    nnmatch = 3,
+    all = T
+  )
+})
+
+saveRDS(rd_robust_conflict0, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_conflict0.rds"))
+saveRDS(rd_robust_conflict1, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_conflict1.rds"))
 
 ##############################################################################################
 ################################### 2. SIMCI DATA: COCA CROPS ################################
