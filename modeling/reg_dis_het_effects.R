@@ -304,6 +304,82 @@ saveRDS(rd_robust_roads1_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/ne
 saveRDS(rd_robust_roads0_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_roads1_coca.rds"))
 
 
+##############################################################################################
+#################################### OPTIMAL ROBUST BANDWITHS ################################
+################ (Institutions:  {1: Municipality created before 1950}) ######################
+s##############################################################################################
+
+list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, ao_crea <= 1950))
+rd_robust_inst0_coca <- lapply(list_df, function(park){
+  rdrobust(
+    y = park$coca_agg,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    nnmatch = 8,
+    all = T
+  )
+})
+
+
+
+list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, ao_crea > 1950))
+rd_robust_inst1_coca <- lapply(list_df, function(park){
+  rdrobust(
+    y = park$coca_agg,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    nnmatch = 3,
+    all = T
+  )
+})
+
+saveRDS(rd_robust_inst0_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_inst0_coca.rds"))
+saveRDS(rd_robust_inst1_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_inst1_coca.rds"))
+
+##############################################################################################
+#################################### OPTIMAL ROBUST BANDWITHS ################################
+##################### (Violence: {1: homicide rate > median pre-2000; 0 ow}) #################
+##############################################################################################
+
+list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, hom_q34 == 0))
+rd_robust_hom0_coca <- lapply(list_df, function(park){
+  rdrobust(
+    y = park$coca_agg,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    nnmatch = 8,
+    all = T
+  )
+})
+
+
+
+list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, hom_q34 == 1))
+rd_robust_hom1_coca <- lapply(list_df, function(park){
+  rdrobust(
+    y = park$coca_agg,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    nnmatch = 3,
+    all = T
+  )
+})
+
+saveRDS(rd_robust_hom0_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_hom0_coca.rds"))
+saveRDS(rd_robust_hom1_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_hom1_coca.rds"))
+
 
 ##############################################################################################
 ################################# 2. SIMCI DATA: ILLEGAL MINING ##############################
@@ -356,12 +432,10 @@ saveRDS(rd_robust_clump1_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/
 ##################### (ROADS BUFFER: {1: INSIDE 5KM ROAD BUFFER, 0: OUTSIDE}) ################
 ##############################################################################################
 
-
-
 counter <- 0
 list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
   lapply(., function(x) base::subset(x, roads == 1))
-rd_robust_clump1_2 <- lapply(list_df, function(park){
+rd_robust_clump1_mining <- lapply(list_df, function(park){
   counter <<- counter + 1
   print(counter)
   rdrobust(
@@ -378,7 +452,7 @@ rd_robust_clump1_2 <- lapply(list_df, function(park){
 counter <- 0
 list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
   lapply(., function(x) base::subset(x, roads == 0))
-rd_robust_clump0_2 <- lapply(list_df, function(park){
+rd_robust_clump0_mining <- lapply(list_df, function(park){
   counter <<- counter + 1
   print(counter)
   rdrobust(
@@ -395,4 +469,84 @@ rd_robust_clump0_2 <- lapply(list_df, function(park){
 saveRDS(rd_robust_clump0_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_roads0_mining.rds"))
 saveRDS(rd_robust_clump1_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_roads1_mining.rds"))
 
+
+##############################################################################################
+#################################### OPTIMAL ROBUST BANDWITHS ################################
+################ (Institutions:  {1: Municipality created before 1950}) ######################
+##############################################################################################
+
+counter <- 0
+list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, ao_crea <= 1950))
+rd_robust_inst0_mining <- lapply(list_df, function(park){
+  counter <<- counter + 1
+  print(counter)
+  rdrobust(
+    y = park$illegal_mining_EVOA_2014,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    nnmatch = 3,
+    all = T
+  )
+})
+
+list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, ao_crea > 1950))
+rd_robust_inst1_mining <- lapply(list_df, function(park){
+  rdrobust(
+    y = park$illegal_mining_EVOA_2014,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    nnmatch = 3,
+    all = T
+  )
+})
+
+
+saveRDS(rd_robust_inst0_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_inst0_mining.rds"))
+saveRDS(rd_robust_inst1_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_inst1_mining.rds"))
+
+##############################################################################################
+#################################### OPTIMAL ROBUST BANDWITHS ################################
+##################### (Violence: {1: homicide rate > median pre-2000; 0 ow}) #################
+##############################################################################################
+
+counter <- 0
+list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, hom_q34 == 0))
+rd_robust_hom0_mining <- lapply(list_df, function(park){
+  counter <<- counter + 1
+  print(counter)
+  rdrobust(
+    y = park$illegal_mining_EVOA_2014,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    nnmatch = 3,
+    all = T
+  )
+})
+
+list_df <- c(defo_dist[1:2], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, hom_q34 == 1))
+rd_robust_hom1_mining <- lapply(list_df, function(park){
+  rdrobust(
+    y = park$illegal_mining_EVOA_2014,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    nnmatch = 3,
+    all = T
+  )
+})
+
+
+saveRDS(rd_robust_hom0_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_hom0_mining.rds"))
+saveRDS(rd_robust_hom1_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_hom1_mining.rds"))
 
