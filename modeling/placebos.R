@@ -1,27 +1,27 @@
 ###############################################################################
-################## PLACEBOS FOR REGRESSION DISCONTINUITIES ####################
+####################### PLACEBOS FOR MAIN RESULTS RD ##########################
 ###############################################################################
 
 rm(list=ls())
 library(plyr)
 library(dplyr)
-library(data.table)
 library(rdrobust)
-library(rdd)
-library(stringr)
 library(stargazer)
-library(foreign)
 library(ggplot2)
 library(magrittr)
 library(foreign)
 library(stringr)
 library(rlang)
+library(parallel)
+library(forcats)
+library(purrr)
 
 
 # Source tables functions
 setwd(Sys.getenv("ROOT_FOLDER"))
 source("R/rd_functions.R")
 source("R/func_tables.R")
+source("R/aesthetics.R")
 source("modeling/merge_datasets.R")
 
 
@@ -33,12 +33,12 @@ setwd(Sys.getenv("OUTPUT_FOLDER"))
 ###############################################################################
 
 list_df <- c(defo_dist[2:3], defo_dist_terr)
+vars <- c('loss_sum', 'coca_agg', 'illegal_mining_EVOA_2014')
+ 
+placebos_all <- cross2(list_df, vars) %>% 
+  invoke_map("rd_placebos", ., start = -10,  end = 10, step = 0.5)
 
-placebos_all <- lapply(list_df, 
-                       rd_placebos, 
-                       start = -10, 
-                       end = 10, 
-                       step = 0.5)
+
 saveRDS(placebos_all, 'placebos_all.rds')
 
 ###############################################################################
@@ -60,13 +60,13 @@ placebos_df <- placebos_all %>%
   lapply(extract_values) %>%
   ldply() %>%
   mutate(cut_offs = rep(cut_offs, length(placebos_all)),
-         area = repeated_names)
+         area = repeated_names,
+         area = fct_reorder(area, c('National', 'Regional', 'Indigenous', 'Black')))
 
 # Correct estimators out of CI's
 placebos_df_corr <- placebos_df %>%
   mutate(sanity_coef = ifelse(coef < ci_r & coef > ci_l, TRUE, FALSE),
-         new_coef = ifelse(sanity_coef == F, (ci_l + ci_r) / 2, coef),
-         sanity_coef = ifelse(new_coef < ci_r & new_coef > ci_l, TRUE, FALSE))
+         new_coef = ifelse(sanity_coef == F, (ci_l + ci_r) / 2, coef))
 
 ###############################################################################
 ################################ PLOTS PLACEBOS ###############################
@@ -80,8 +80,9 @@ g <- g + facet_wrap(~area, ncol = 1, scales = 'free')
 g <- g + geom_vline(xintercept = 0, linetype = 2) 
 g <- g + geom_hline(yintercept = 0, linetype = 2, colour = "grey")
 g <- g + labs(x = 'Cut offs (km)', y = 'Coefficient')
+g <- g + theme_bw()
 g
-ggsave('RD/Graphs/RD_placebos_new.pdf', width = 30, height = 30, units = 'cm ')
+ggsave('RD/Graphs/RD_placebos_new.pdf', width = 30, height = 30, units = 'cm')
 
 ################################################ GRAPHS AND TABLES #####################################################
 ############################################## RD OBJECT TO DATAFRAME FUNCTION ########################################

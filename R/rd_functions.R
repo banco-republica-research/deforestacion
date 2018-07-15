@@ -120,22 +120,27 @@ descriptive_stats_buffer <- function(list_df,
 ##  to validate our results (robustness)                                     ##  
 ###############################################################################
 
-
-
-
-rd_placebos <- function(df, start, end, step=0.5, ...){
+rd_placebos <- function(df, 
+                        var_dep, 
+                        start, 
+                        end, 
+                        step=0.5, ...){
+  
   if(abs(start) != end){
     stop('Start and end must be simetrical: start < 0 < end and 
          start * -1 = end')
   }
   
+  print(var_dep)
+  
   results <- list()
+  
   for(i in seq(start, end, step)){
     
     index = as.character((i + 1) + end)
-    
-    results[[index]] <- rdrobust(
-      y = df$loss_sum,
+    print(index)
+    results[[index]] <- rdrobust::rdrobust(
+      y = df[, var_dep],
       x = df$dist_disc,
       covs = cbind(df$altura_tile_30arc, df$slope, df$roughness, df$prec, 
                    df$sq_1km.1, df$treecover_agg),
@@ -148,5 +153,12 @@ rd_placebos <- function(df, start, end, step=0.5, ...){
   }
 
 
+
+###############################################################################
+## 		          SENSIBILITY TESTS - REPEAT RD CHANGING CUT-OFF 	             ##
+##  This function will calculate the treatment effect for a range of         ##
+##  cut-offs at both sides of the real cut-off (here c = 0) in otder         ##
+##  to validate our results (robustness)                                     ##  
+###############################################################################
 
 
