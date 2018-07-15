@@ -89,6 +89,61 @@ parenthesis <- function(df, std_err_name){
 }
 
 
+########################### RD_TO_DF_2 UTILS #########################
+# This functions are auxiliary function to extract values from rd
+# objects and calculate mean baselines data
+#####################################################################
+extract_values <- function(x, round = FALSE, digits = NULL){
+  
+  # Table esential stats
+  coef = x$Estimate[1, 'tau.bc']
+  std_err = x$Estimate[1, 'se.rb']
+  t_stat = x$Estimate[, 'tau.bc']/x$Estimate[, 'se.rb']
+  p_value = 2 * pnorm(-abs(t_stat))
+  bw = x$bws[1]
+  n_eff = x$Nh[1] + x$Nh[2]
+  
+  # Additional stats
+  z_stat = -qnorm(abs((1 - (x$level/100))/2))
+  c_int_l = (x$Estimate[, "tau.bc"] - x$Estimate[, "se.rb"]) * z_stat
+  c_int_r = (x$Estimate[, "tau.bc"] + x$Estimate[, "se.rb"]) * z_stat
+  
+  if(is_false(round)){
+    # Create a df to start the table
+    df <- data.frame(
+      coef ,
+      std_err,
+      t_stat ,
+      p_value ,
+      n_treat = x$Nh[1],
+      n = n_eff,
+      ci_l = c_int_l,
+      ci_r = c_int_r,
+      bw
+    )
+  } else {
+    if(is.null(digits)){
+      digits = Inf
+    }
+    # Create a df to start the table
+    df <- data.frame(
+      coef = round(coef, digits),
+      std_err = round(std_err, digits),
+      t_stat = round(t_stat, digits),
+      p_value = round(p_value, digits+1),
+      n_treat = x$Nh[1],
+      n = n_eff,
+      ci_l = round(c_int_l, digits),
+      ci_r = round(c_int_r, digits),
+      bw = round(bw, digits)
+    )
+
+  }
+  
+  return(df)
+}
+
+
 ########################### RD_TO_DF_2 ###########################
 # This function takes a list of rd objects and convert each element
 # of the list as a model column in a named data.frame. This table 
@@ -97,13 +152,11 @@ parenthesis <- function(df, std_err_name){
 # models in the list_rd_objects. 
 ###################################################################
 
-
-
 rd_to_df_2 <- function(list_rd_files, 
                        control_df,
                        names = NULL,
                        digits = 3,
-                       baseline_variable,
+                       baseline_variable=NULL,
                        stargazer = FALSE,
                        ...){
   
@@ -147,6 +200,7 @@ rd_to_df_2 <- function(list_rd_files,
   
   # Extract estimate statistics
   extract_values <- lapply(files_data, function(x){
+    
     # Table esential stats
     coef = x$Estimate[1, 'tau.bc']
     std_err = x$Estimate[1, 'se.rb']
@@ -191,7 +245,6 @@ rd_to_df_2 <- function(list_rd_files,
   } else {
     defo_mean <- rep(0, length(files_data))
   }
-  
   
   
   # Concatenate data.frames and order them

@@ -11,7 +11,6 @@ library(rdd)
 library(stringr)
 library(stargazer)
 library(foreign)
-library(rddtools)
 library(ggplot2)
 library(magrittr)
 library(foreign)
@@ -42,38 +41,50 @@ placebos_all <- lapply(list_df,
                        step = 0.5)
 saveRDS(placebos_all, 'placebos_all.rds')
 
+###############################################################################
+########################## PLACEBOS TO DATAFRAME  #############################
+###############################################################################
 
-rd_to_df_2(placebos_all[[1]])
+# Define cut-offs to rename names
+cut_offs <- seq(-10, 10, 0.5)
+names <- c('National', 'Regional', 'Black', 'Indigenous') 
+
+#  Define names for identify df
+repeated_names <- names %>% 
+  rep(length(cut_offs)) %>%
+  .[order(match(., names))] 
+
+# Convert Placebos to df
+placebos_df <- placebos_all %>%
+  unlist(recursive = F) %>%  
+  lapply(extract_values) %>%
+  ldply() %>%
+  mutate(cut_offs = rep(cut_offs, length(placebos_all)),
+         area = repeated_names)
+
+# Correct estimators out of CI's
+placebos_df_corr <- placebos_df %>%
+  mutate(sanity_coef = ifelse(coef < ci_r & coef > ci_l, TRUE, FALSE),
+         new_coef = ifelse(sanity_coef == F, (ci_l + ci_r) / 2, coef),
+         sanity_coef = ifelse(new_coef < ci_r & new_coef > ci_l, TRUE, FALSE))
+
+###############################################################################
+################################ PLOTS PLACEBOS ###############################
+###############################################################################
+
+
+g <- ggplot(placebos_df_corr, aes(x =cut_offs , y =new_coef))
+g <- g + geom_line(size = 1)
+g <- g + geom_ribbon(aes(ymin = ci_l, ymax = ci_r), alpha = 0.2)
+g <- g + facet_wrap(~area, ncol = 1, scales = 'free')
+g <- g + geom_vline(xintercept = 0, linetype = 2) 
+g <- g + geom_hline(yintercept = 0, linetype = 2, colour = "grey")
+g <- g + labs(x = 'Cut offs (km)', y = 'Coefficient')
+g
+ggsave('RD/Graphs/RD_placebos_new.pdf', width = 30, height = 30, units = 'cm ')
 
 ################################################ GRAPHS AND TABLES #####################################################
 ############################################## RD OBJECT TO DATAFRAME FUNCTION ########################################
-
-
-rd_to_df <- function(list, name){
-  rd <- lapply(list, "[", "tabl3.str") %>%
-    lapply(as.data.frame) %>%
-    lapply( "[", 1 , ) %>% 
-    ldply() %>% mutate(N_l = unlist(lapply(list, "[", "N_l"))) %>%
-    mutate(N_r = unlist(lapply(list, "[", "N_r"))) %>%
-    mutate(N = N_l + N_r) %>%
-    mutate(bws = unlist(lapply(list, function(x) x$bws[1, 1]))) %>%
-    as.data.frame() %>%
-    rename(Tratamiento = tabl3.str.Coef, SE = tabl3.str.Std..Err., z = tabl3.str.z, p_value = tabl3.str.P..z., CI_l = tabl3.str.CI.Lower, 
-           CI_u = tabl3.str.CI.Upper, N_left = N_l, N_right = N_r, N = N, bw = bws ) %>%
-    mutate(Discontinuidad = seq(from = -10, to = 10, by = 0.5)) %>% mutate_all(funs(as.character)) %>% mutate_all(funs(as.numeric)) %>%
-    mutate(type = name) %>% mutate(type = factor(type, levels = c("Nacionales", "Regionales", "Indígenas", "Comunidades negras")))
-  return(rd)
-}
-
-
-placebos <- list(rd_robust_placebo_national,
-                 rd_robust_placebo_regional,
-                 rd_robust_placebo_indigenous,
-                 rd_robust_placebo_black)
-
-placebos_df <- mapply(rd_to_df, list = placebos, 
-                      name = c("Nacionales", "Regionales", "Indígenas", "Comunidades negras"), SIMPLIFY = F) %>%
-  ldply() %>% arrange(Discontinuidad)
 
 #Graph LATE for all distances with IC's
 setwd("~/Dropbox/BANREP/Deforestacion/Results/RD/Graphs/")
