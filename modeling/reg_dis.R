@@ -112,7 +112,7 @@ saveRDS(rd_robust_terr_2_ctrl, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/ne
 ########################################### (CONTROLS) #######################################
 ##############################################################################################
 
-rd_robust_parks_2_coca <- lapply(defo_dist[1:2], function(park){
+rd_robust_parks_2_coca <- lapply(defo_dist[2:3], function(park){
   rdrobust(
     y = park$coca_agg,
     x = park$dist_disc,
@@ -151,7 +151,7 @@ saveRDS(rd_robust_terr_2_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/ne
 
 
 
-rd_robust_parks_2_mining <- lapply(defo_dist, function(park){
+rd_robust_parks_2_mining <- lapply(defo_dist[2:3], function(park){
   rdrobust(
     y = park$illegal_mining_EVOA_2014,
     x = park$dist_disc,
