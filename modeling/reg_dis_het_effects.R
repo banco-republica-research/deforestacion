@@ -386,6 +386,40 @@ saveRDS(rd_robust_roads0_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/ne
 ##############################################################################################
 
 
+counter <- 0
+list_df <- c(defo_dist[2], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, clumps_1 ==1))
+rd_robust_clump1_mining <- lapply(list_df, function(park){
+  counter <<- counter + 1
+  print(counter)
+  rdrobust(
+    y = park$illegal_mining_EVOA_2014,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    nnmatch = 3,
+    all = T
+  )
+})
+
+list_df <- c(defo_dist[2], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, clumps_1 == 0))
+rd_robust_clump0_mining <- lapply(list_df, function(park){
+  rdrobust(
+    y = park$illegal_mining_EVOA_2014,
+    x = park$dist_disc,
+    covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
+                 park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
+    vce = "nn",
+    nnmatch = 3,
+    all = T
+  )
+})
+
+
+saveRDS(rd_robust_clump0_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump0_mining.rds"))
+saveRDS(rd_robust_clump1_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump1_mining.rds"))
 
 
 ##############################################################################################
