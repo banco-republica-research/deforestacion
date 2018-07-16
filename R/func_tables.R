@@ -180,12 +180,12 @@ rd_to_df_2 <- function(list_rd_files,
     print('rd_object')
     files_data <- lapply(list_rd_files, readRDS) %>%
       unlist(., recursive=F)
+    dates_files <- lapply(list_rd_files, function(x){
+      file.info(x)[,'mtime'] %>% as.Date()
+    }) %>% .[[1]]
   }
   
-  # dates_files <- lapply(list_rd_files, function(x){
-  #   file.info(x)[,'mtime'] %>% as.Date() 
-  # }) %>% .[[1]] 
-  
+
   
   if(!is.null(names)){
     if(length(names) != length(files_data)){

@@ -51,8 +51,14 @@ names <- c('National', 'Regional', 'Black', 'Indigenous')
 
 #  Define names for identify df
 repeated_names <- names %>% 
-  rep(length(cut_offs)) %>%
-  .[order(match(., names))] 
+  rep(., length(cut_offs)) %>%
+  .[order(match(., names))] %>%
+  rep(., length(vars))
+
+repeated_vars <- vars %>%
+  rep(length(names) * length(cut_offs)) %>%
+  .[order(match(., vars))] 
+
 
 # Convert Placebos to df
 placebos_df <- placebos_all %>%
@@ -60,8 +66,13 @@ placebos_df <- placebos_all %>%
   lapply(extract_values) %>%
   ldply() %>%
   mutate(cut_offs = rep(cut_offs, length(placebos_all)),
-         area = repeated_names,
-         area = fct_reorder(area, c('National', 'Regional', 'Indigenous', 'Black')))
+         area = factor(repeated_names),
+         area = fct_relevel(area, c('National', 'Regional', 'Indigenous', 'Black')),
+         var = repeated_vars,
+         var_name = fct_recode(var, Deforestation = 'loss_sum',
+                               `Coca Crops` = 'coca_agg',
+                               Mining = 'illegal_mining_EVOA_2014')
+         ) 
 
 # Correct estimators out of CI's
 placebos_df_corr <- placebos_df %>%
@@ -72,69 +83,26 @@ placebos_df_corr <- placebos_df %>%
 ################################ PLOTS PLACEBOS ###############################
 ###############################################################################
 
+df_list_vars <- split(placebos_df_corr, placebos_df_corr$var) 
 
-g <- ggplot(placebos_df_corr, aes(x =cut_offs , y =new_coef))
-g <- g + geom_line(size = 1)
-g <- g + geom_ribbon(aes(ymin = ci_l, ymax = ci_r), alpha = 0.2)
-g <- g + facet_wrap(~area, ncol = 1, scales = 'free')
-g <- g + geom_vline(xintercept = 0, linetype = 2) 
-g <- g + geom_hline(yintercept = 0, linetype = 2, colour = "grey")
-g <- g + labs(x = 'Cut offs (km)', y = 'Coefficient')
-g <- g + theme_bw()
-g
-ggsave('RD/Graphs/RD_placebos_new.pdf', width = 30, height = 30, units = 'cm')
+plts <- lapply(df_list_vars, function(x){
+  g <- ggplot(x, aes(x =cut_offs , y =new_coef))
+  g <- g + geom_line(size = 1)
+  g <- g + geom_ribbon(aes(ymin = ci_l, ymax = ci_r), alpha = 0.2)
+  g <- g + facet_wrap(~area, ncol = 1, scales = 'free')
+  g <- g + geom_vline(xintercept = 0, linetype = 2) 
+  g <- g + geom_hline(yintercept = 0, linetype = 2, colour = "grey")
+  g <- g + labs(x = 'Cut offs (km)', y = 'Coefficient')
+  g <- g + theme_bw()
+  g
+})
 
-################################################ GRAPHS AND TABLES #####################################################
-############################################## RD OBJECT TO DATAFRAME FUNCTION ########################################
-
-#Graph LATE for all distances with IC's
-setwd("~/Dropbox/BANREP/Deforestacion/Results/RD/Graphs/")
-g <- ggplot(placebos_df, aes(y = Tratamiento, x = Discontinuidad)) 
-g <- g + facet_wrap( ~ type, ncol=1, scales = "free")
-g <- g + geom_line() 
-g <- g + geom_ribbon(aes(ymin = CI_l, ymax = CI_u), alpha = 0.2)
-g <- g + geom_vline(xintercept = 0, linetype = 2) 
-g <- g + geom_hline(yintercept = 0, linetype = 2, colour = "grey")
-g <- g + theme_bw()
-g
-ggsave("RDggplot_placebos.pdf", width=30, height=20, units="cm")
-
-
-
-############################################### GRAPH AND TABLE FOR PANEL ###############################################
-################################################### DISTANCE PLACEBOS ###################################################
-
-setwd("~/Dropbox/BANREP/Deforestacion/Results/Panel/")
-list_files <- list.files()
-robust_panel <- list_files[str_detect(list_files, "robust")] %>%
-  .[order(.)[c(2, 3, 4, 5, 1)]] %>%
-  lapply(function(x){
-    read.table(x, row.names = NULL) %>%
-      select(c1:c5) %>%
-      .[2:dim(.)[1], ] %>%
-      rename(Discontinuidad = c1, N = c2, Tratamiento = c3, SE = c4, t = c5) %>%
-      mutate_all(funs(as.character)) %>% mutate_all(funs(as.numeric)) %>%
-      mutate(Discontinuidad = Discontinuidad / 1000) %>%
-      mutate(CI_u = Tratamiento + (SE * 1.96)) %>%
-      mutate(CI_l = Tratamiento - (SE * 1.96))
-  }) %>% mapply(function(x, name){
-    mutate(x, type = name) %>%
-      mutate(type = factor(type, levels = c("Nacionales", "Regionales", "Indígenas", "Comunidades negras", "Sociedad Civil")))
-  }, x = ., name = c("Nacionales", "Regionales", "Indígenas", "Comunidades negras", "Sociedad Civil"), SIMPLIFY = F) %>%
-  ldply() %>% arrange(Discontinuidad)
-    
-
-#Graph LATE for all distances with IC's
-setwd("~/Dropbox/BANREP/Deforestacion/Results/RD/Graphs/")
-g <- ggplot(robust_panel, aes(y = Tratamiento, x = Discontinuidad)) 
-g <- g + facet_wrap( ~ type, ncol=1, scales = "free")
-g <- g + geom_line() 
-g <- g + geom_ribbon(aes(ymin = CI_l, ymax = CI_u), alpha = 0.2)
-g <- g + geom_vline(xintercept = 0, linetype = 2) 
-g <- g + geom_hline(yintercept = 0, linetype = 2, colour = "grey")
-g <- g + theme_bw()
-g
-ggsave("RDggplot_placebos_panel.pdf", width=30, height=20, units="cm")
-
+paths <- (str_c('RD/Graphs/RD_placebos_new_', names(plts) ,'.pdf'))
+pwalk(list(paths, plts), ggsave, 
+      path = getwd(), 
+      device = 'pdf',
+      width = 30, 
+      height = 30, 
+      units = 'cm')
 
 

@@ -66,7 +66,8 @@ descriptive_stats_buffer <- function(list_df,
                                      buffer = 5, 
                                      covs, 
                                      treatment = FALSE,
-                                     names){
+                                     names,
+                                     digits = Inf){
   if(is.null(covs)){
     stop('Put some variables to calculate stuff')
   }
@@ -94,7 +95,8 @@ descriptive_stats_buffer <- function(list_df,
          gather(stat, val) %>%
          separate(stat, into = c('var', 'stat'), sep = '_') %>%
          spread(stat, val) %>%
-         dplyr::select(var, mean, sd, min, max, n)
+         dplyr::select(var, mean, sd, min, max, n) %>%
+         mutate_if(is.numeric, round, digits)
          
          return(df_shape)
     })
@@ -161,4 +163,36 @@ rd_placebos <- function(df,
 ##  to validate our results (robustness)                                     ##  
 ###############################################################################
 
+rd_sensibility <- function(df, 
+                           bws,
+                           var_dep,
+                           start, 
+                           end, 
+                           step=0.5, ...){
 
+  print(var_dep)
+  
+  # Create bw sensibility lists
+  bws_list <- lapply(bws, function(x){
+    c(seq(start, end, by = step), x) %>%
+      .[sort.list(.)]
+  })
+  
+  results <- lapply(bws_list, function(x){
+    lapply(x, function(bw_vector){
+      print(bw_vector)
+      print(var_dep)
+      rdrobust(
+        y = df[, var_dep],
+        x = df$dist_disc,
+        covs = cbind(df$altura_tile_30arc, df$slope, df$roughness, df$prec, 
+                     df$sq_1km.1, df$treecover_agg),
+        all = T,
+        h = bw_vector,
+        vce = 'hc1',
+        c = 0)
+    })
+  })
+  
+  return(results)
+}
