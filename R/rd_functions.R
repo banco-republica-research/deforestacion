@@ -17,6 +17,46 @@ rd_robust <- function(df, x, y, nn, bw = NULL, covs_matrix = NULL){
 
 
 ###############################################################################
+## 		          RD PLOTS FUNCTION TO GET RD PACKAGE PLOTS                    ##
+##  This function will calculate the treatment effect for a range of         ##
+##  cut-offs at both sides of the real cut-off (here c = 0) in otder         ##
+##  to validate our results (robustness)                                     ##  
+###############################################################################
+
+plot_me_like_your_french_girls <- function(list, 
+                                           var_dep,
+                                           dist_var,
+                                           names_labels,
+                                           position_vector = NULL,
+                                           ...){
+  
+  # Set par settings
+  op <- par(no.readonly = TRUE)
+  on.exit(par(op))
+  
+  # Set facet size
+  l <- length(list)
+  dim <- c(l, l)
+  par(mfrow = dim)
+  pdf(str_c("RD_test.pdf"), height=12, width=12)
+  mapply(function(df, type){
+    rdplot(x = df[, dist_var],
+           y = df[, var_dep],
+           p = 4,
+           ci = 95,
+           binselect = "es",
+           x.lim = c(-50, 50),
+           title = str_c("Regression discontinuity for", type, sep = " "),
+           x.label = "Distance to territory border (Km)",
+           y.label = expression(paste('Deforestation Rate (', ha/km^2, ')')),
+           c = 0)
+  }, df = list, type = names_labels)
+}
+
+
+
+
+###############################################################################
 ## 		            	PERMUTATION TESTS: CANAY & CAMAT (2017) 	               ##
 ## This function calculates the Canay and Camat test to check violations to  ##
 ## the RD assumptions. The function is a simple wrapper to the RATest pkg    ##
@@ -196,3 +236,9 @@ rd_sensibility <- function(df,
   
   return(results)
 }
+
+
+
+
+
+
