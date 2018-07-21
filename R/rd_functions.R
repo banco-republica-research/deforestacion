@@ -26,8 +26,11 @@ rd_robust <- function(df, x, y, nn, bw = NULL, covs_matrix = NULL){
 plot_me_like_your_french_girls <- function(list, 
                                            var_dep,
                                            dist_var,
+                                           # y_lim = NULL,
                                            names_labels,
                                            position_vector = NULL,
+                                           label_x,
+                                           label_y,
                                            ...){
   
   # Set par settings
@@ -35,22 +38,32 @@ plot_me_like_your_french_girls <- function(list,
   on.exit(par(op))
   
   # Set facet size
-  l <- length(list)
+  l <- length(list)/2
   dim <- c(l, l)
+  
+  #Save as pdf
+  pdf(str_c("RD_test.pdf"), height=10, width=10)
   par(mfrow = dim)
-  pdf(str_c("RD_test.pdf"), height=12, width=12)
+  par(mar = c(5, 4, 1, 0), oma = c(5, 4, 1, 1))
   mapply(function(df, type){
     rdplot(x = df[, dist_var],
            y = df[, var_dep],
+           subset = NULL,
+           sub = type,
            p = 4,
            ci = 95,
            binselect = "es",
+           y.lim = NULL,
            x.lim = c(-50, 50),
-           title = str_c("Regression discontinuity for", type, sep = " "),
-           x.label = "Distance to territory border (Km)",
-           y.label = expression(paste('Deforestation Rate (', ha/km^2, ')')),
+           # sub = type,
+           title = '',
+           x.label = '',
+           y.label = '',
            c = 0)
   }, df = list, type = names_labels)
+  mtext(label_x, side = 1, outer = TRUE)
+  mtext(label_y, side = 2, outer = TRUE)
+  dev.off()
 }
 
 

@@ -303,18 +303,18 @@ df_inst_het_effects_list_mining <- lapply(rd_robust_het_effects_institutions_min
 
 ################################## HOMICIDES ##################################
 
-# list_files <- list.files("RD/Models/new_results", full.names = T)
-# rd_robust_het_effects_homicides_coca <- list_files[str_detect(list_files, regex('hom\\d_m'))] 
-# 
-# list_df <- c(defo_dist[2:3], defo_dist_terr)
-# df_homicides_het_effects_coca <- lapply(rd_robust_het_effects_homicides_coca, function(x){
-#   rd_to_df_2(x, 
-#              control_df = list_df, 
-#              names = c("National", "Regional", "Black", "Ingigenous"),
-#              digits = 4,
-#              baseline_variable = 'illegal_mining_EVOA_2014',
-#              latex = TRUE) %>% .[c(1, 2, 4, 3)]
-# })
+list_files <- list.files("RD/Models/new_results", full.names = T)
+rd_robust_het_effects_homicides_mining <- list_files[str_detect(list_files, regex('hom\\d_m'))]
+
+list_df <- c(defo_dist[2], defo_dist_terr)
+df_homicides_het_effects_mining <- lapply(rd_robust_het_effects_homicides_mining, function(x){
+  rd_to_df_2(x,
+             control_df = list_df,
+             names = c("National", "Black", "Ingigenous"),
+             digits = 4,
+             baseline_variable = 'illegal_mining_EVOA_2014',
+             latex = TRUE) %>% .[c(1, 2, 4, 3)]
+})
 
 
 
