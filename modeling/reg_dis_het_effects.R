@@ -40,8 +40,8 @@ source("modeling/merge_datasets.R")
 ##############################################################################################
 
 
-list_df <- c(defo_dist, defo_dist_terr) %>%
-  lapply(., function(x) base::subset(x, clumps_1 == 1))
+list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, clumps_5k == 1))
 rd_robust_clump1 <- lapply(list_df, function(park){
   rdrobust(
     y = park$loss_sum,
@@ -56,8 +56,8 @@ rd_robust_clump1 <- lapply(list_df, function(park){
 
 
 
-list_df <- c(defo_dist, defo_dist_terr) %>%
-  lapply(., function(x) base::subset(x, clumps_1 == 0))
+list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
+  lapply(., function(x) base::subset(x, clumps_5k == 0))
 rd_robust_clump0 <- lapply(list_df, function(park){
   rdrobust(
     y = park$loss_sum,
@@ -72,6 +72,11 @@ rd_robust_clump0 <- lapply(list_df, function(park){
 
 saveRDS(rd_robust_clump0, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump0.rds"))
 saveRDS(rd_robust_clump1, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump1.rds"))
+
+
+# setwd("E:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/Results/")
+# saveRDS(rd_robust_clump0, paste0("RD/Models/new_results/rd_robust_clump0.rds"))
+# saveRDS(rd_robust_clump1, paste0("RD/Models/new_results/rd_robust_clump1.rds"))
 
 
 ##############################################################################################
@@ -388,7 +393,7 @@ saveRDS(rd_robust_roads0_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/ne
 
 counter <- 0
 list_df <- c(defo_dist[2], defo_dist_terr) %>%
-  lapply(., function(x) base::subset(x, clumps_1 ==1))
+  lapply(., function(x) base::subset(x, clumps_5k ==1))
 rd_robust_clump1_mining <- lapply(list_df, function(park){
   counter <<- counter + 1
   print(counter)
@@ -404,7 +409,7 @@ rd_robust_clump1_mining <- lapply(list_df, function(park){
 })
 
 list_df <- c(defo_dist[2], defo_dist_terr) %>%
-  lapply(., function(x) base::subset(x, clumps_1 == 0))
+  lapply(., function(x) base::subset(x, clumps_5k == 0))
 rd_robust_clump0_mining <- lapply(list_df, function(park){
   rdrobust(
     y = park$illegal_mining_EVOA_2014,
@@ -420,6 +425,10 @@ rd_robust_clump0_mining <- lapply(list_df, function(park){
 
 saveRDS(rd_robust_clump0_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump0_mining.rds"))
 saveRDS(rd_robust_clump1_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump1_mining.rds"))
+
+# setwd("E:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/Results/")
+# saveRDS(rd_robust_clump0_mining, paste0("RD/Models/new_results/rd_robust_clump0_mining.rds"))
+# saveRDS(rd_robust_clump1_mining, paste0("RD/Models/new_results/rd_robust_clump1_mining.rds"))
 
 
 ##############################################################################################

@@ -9,6 +9,7 @@
 
 # Set directories
 setwd(Sys.getenv("DATA_FOLDER"))
+# setwd("E:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/Datos/")
 
 ########################################## STRATEGY 2: EFFECTIVE BORDERS ###############################################
 
@@ -67,4 +68,13 @@ defo_dist_terr <- lapply(territories_2000, function(x){
     merge(., codmun, by = "ID", all.x = T) %>% 
     merge(., conflict, by = "codmun", all.x = T)
 })
+
+
+# # export for stata regressions
+# write.dta(defo_dist[[2]], paste0("Dataframes/Estrategia 2/national.dta"))
+# write.dta(defo_dist[[3]], paste0("Dataframes/Estrategia 2/regional.dta"))
+# write.dta(defo_dist_terr[[1]], paste0("Dataframes/Estrategia 2/afro.dta"))
+# write.dta(defo_dist_terr[[2]], paste0("Dataframes/Estrategia 2/indigenous.dta"))
+
+
 
