@@ -49,11 +49,10 @@ rd_robust_clump1 <- lapply(list_df, function(park){
     covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
-    nnmatch = 8,
+    nnmatch = 3,
     all = T
   )
 })
-
 
 
 list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
@@ -65,7 +64,7 @@ rd_robust_clump0 <- lapply(list_df, function(park){
     covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
-    nnmatch = 8,
+    nnmatch = 3,
     all = T
   )
 })
@@ -73,11 +72,8 @@ rd_robust_clump0 <- lapply(list_df, function(park){
 saveRDS(rd_robust_clump0, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump0.rds"))
 saveRDS(rd_robust_clump1, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump1.rds"))
 
-
-# setwd("E:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/Results/")
-# saveRDS(rd_robust_clump0, paste0("RD/Models/new_results/rd_robust_clump0.rds"))
-# saveRDS(rd_robust_clump1, paste0("RD/Models/new_results/rd_robust_clump1.rds"))
-
+rd_robust_clump0 <- readRDS(str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump0.rds"))
+rd_robust_clump1 <- readRDS(str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump1.rds"))
 
 ##############################################################################################
 #################################### OPTIMAL ROBUST BANDWITHS ################################
@@ -98,7 +94,6 @@ rd_robust_clump1_2 <- lapply(list_df, function(park){
     all = T
   )
 })
-
 
 list_df <- c(defo_dist[2:3], defo_dist_terr) %>%
   lapply(., function(x) base::subset(x, roads == 0))
@@ -246,7 +241,7 @@ rd_robust_clump1_coca <- lapply(list_df, function(park){
     covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
-    nnmatch = 8,
+    nnmatch = 3,
     all = T
   )
 })
@@ -265,9 +260,11 @@ rd_robust_clump0_coca <- lapply(list_df, function(park){
   )
 })
 
-saveRDS(rd_robust_clump1_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump1_coca.rds"))
 saveRDS(rd_robust_clump0_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump0_coca.rds"))
+saveRDS(rd_robust_clump1_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump1_coca.rds"))
 
+rd_robust_clump0_coca <- readRDS(str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump0_coca.rds"))
+rd_robust_clump1_coca <- readRDS(str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump1_coca.rds"))
 
 ##############################################################################################
 #################################### OPTIMAL ROBUST BANDWITHS ################################
@@ -287,8 +284,6 @@ rd_robust_inst0_coca <- lapply(list_df, function(park){
     all = T
   )
 })
-
-
 
 list_df <- c(defo_dist[2], defo_dist_terr) %>%
   lapply(., function(x) base::subset(x, ao_crea > 1950))
@@ -321,7 +316,7 @@ rd_robust_hom0_coca <- lapply(list_df, function(park){
     covs = cbind(park$altura_tile_30arc, park$slope, park$roughness, park$prec, 
                  park$sq_1km.1, park$treecover_agg, as.factor(as.character(park$buffer_id))),
     vce = "nn",
-    nnmatch = 8,
+    nnmatch = 3,
     all = T
   )
 })
@@ -392,7 +387,7 @@ saveRDS(rd_robust_roads0_coca, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/ne
 
 
 counter <- 0
-list_df <- c(defo_dist[2], defo_dist_terr) %>%
+list_df <- c(defo_dist[2]) %>%
   lapply(., function(x) base::subset(x, clumps_5k ==1))
 rd_robust_clump1_mining <- lapply(list_df, function(park){
   counter <<- counter + 1
@@ -426,10 +421,8 @@ rd_robust_clump0_mining <- lapply(list_df, function(park){
 saveRDS(rd_robust_clump0_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump0_mining.rds"))
 saveRDS(rd_robust_clump1_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump1_mining.rds"))
 
-# setwd("E:/Users/lbonilme/Dropbox/CEER v2/Papers/Deforestacion/Results/")
-# saveRDS(rd_robust_clump0_mining, paste0("RD/Models/new_results/rd_robust_clump0_mining.rds"))
-# saveRDS(rd_robust_clump1_mining, paste0("RD/Models/new_results/rd_robust_clump1_mining.rds"))
-
+rd_robust_clump0_mining <- readRDS(str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump0_mining.rds"))
+rd_robust_clump1_mining <- readRDS(str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_clump1_mining.rds"))
 
 ##############################################################################################
 #################################### OPTIMAL ROBUST BANDWITHS ################################
@@ -478,7 +471,7 @@ saveRDS(rd_robust_inst1_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/n
 
 counter <- 0
 list_df <- c(defo_dist_terr) %>%
-  lapply(., function(x) base::subset(x, hom_q34 == 1))
+  lapply(., function(x) base::subset(x, hom_q34 == 0))
 
 rd_robust_hom0_mining <- lapply(list_df, function(park){
   counter <<- counter + 1
@@ -512,8 +505,10 @@ rd_robust_hom1_mining <- lapply(list_df, function(park){
 saveRDS(rd_robust_hom0_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_hom0_mining.rds"))
 saveRDS(rd_robust_hom1_mining, str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_hom1_mining.rds"))
 
+# rd_robust_hom0_mining <- readRDS(str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_hom0_mining.rds"))
+# rd_robust_hom1_mining <- readRDS(str_c(Sys.getenv("OUTPUT_FOLDER"), "/RD/Models/new_results/rd_robust_hom1_mining.rds"))
 
-##############################################################################################
+s##############################################################################################
 #################################### OPTIMAL ROBUST BANDWITHS ################################
 ##################### (ROADS BUFFER: {1: INSIDE 5KM ROAD BUFFER, 0: OUTSIDE}) ################
 ##############################################################################################
