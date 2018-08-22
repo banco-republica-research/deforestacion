@@ -29,8 +29,6 @@ source("modeling/merge_datasets.R")
 # Set directories
 setwd(paste0(Sys.getenv("OUTPUT_FOLDER")))
 
-
-
 ###############################################################################
 ###### RESULTS DATAFRAME PER TABLE: DEFORESTATION FOR EACH PROTECTED AREA #####
 ################################## (TABLE 3) ##################################
