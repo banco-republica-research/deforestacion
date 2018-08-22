@@ -34,12 +34,14 @@ setwd(Sys.getenv("OUTPUT_FOLDER"))
 
 list_df <- c(defo_dist[2:3], defo_dist_terr)
 vars <- c('loss_sum', 'coca_agg', 'illegal_mining_EVOA_2014')
- 
-placebos_all <- cross2(list_df, vars) %>% 
-  invoke_map("rd_placebos", ., start = -10,  end = 10, step = 0.5)
 
-
-saveRDS(placebos_all, 'placebos_all.rds')
+if('placebos_all.rds' %in% list.files()){
+  print(paste0('Placebos already calculated and stored in ', getwd()))
+} else {
+  placebos_all <- cross2(list_df, vars) %>% 
+    invoke_map("rd_placebos", ., start = -10,  end = 10, step = 0.5)
+  saveRDS(placebos_all, 'placebos_all.rds')
+}
 
 ###############################################################################
 ########################## PLACEBOS TO DATAFRAME  #############################

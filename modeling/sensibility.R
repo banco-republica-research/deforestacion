@@ -13,6 +13,7 @@ library(magrittr)
 library(foreign)
 library(purrr)
 library(rlang)
+library(tidyr)
 
 
 # Source tables functions
@@ -35,34 +36,73 @@ setwd(Sys.getenv("OUTPUT_FOLDER"))
 ## FRAME IN THE FILE modeling/rd_to_tables.R                                 ##
 ###############################################################################
 
+# List of dataframes with data per each area: parks and territories
+list_df <- c(defo_dist[2:3], defo_dist_terr)
+data_tibble <- tibble::tibble(data = list_df) %>%
+  mutate(dfs = c('National', 'Regional', 'Black', 'Indigenous'))
+
 # Extract optimal bw's for all areas and selected models
 
 selected_models <- list(df_robusts_controls,
                         df_robust_coca_control,
                         df_robust_mining)
 
-lists_bws_optimal <- sapply(selected_models, function(x){
+lists_bws_optimal <- lapply(selected_models, function(x){
   x %>%
     t() %>%
     as.data.frame() %>%
     select(bws) %>%
     mutate_all(as.character) %>%
-    mutate_all(as.numeric)
-})
+    mutate_all(as.numeric) %>%
+    t() %>%
+    set_colnames(c('National', 'Regional', 'Indigenous', 'Black'))
+}) %>% ldply() %>%
+  mutate(estimated_var = c('loss_sum', 'coca_agg', 'mining')) %>%
+  gather(dfs, optimal_bw, National:Black)
 
-# Define vars to run sensibility tests
-list_df <- c(defo_dist[2:3], defo_dist_terr)
-vars <- c('loss_sum', 'coca_agg', 'illegal_mining_EVOA_2014')
+# Dataframe with iteration paramters 
+iter_df  <- cross3(c('National', 'Regional', 'Black', 'Indigenous'),
+                              c('loss_sum', 'coca_agg', 'mining'),
+                              c('loss_sum', 'coca_agg', 'mining')) %>%
+  map(setNames, c('dfs', 'bws', 'vars')) %>%
+  bind_rows() %>%
+  filter(bws==vars) %>%
+  arrange(dfs) %>%
+  left_join(.,
+            lists_bws_optimal,
+            by=c('dfs'='dfs', 'bws'='estimated_var'))
 
-# Run sensibility tests
+iter_df_data <- iter_df %>%
+  inner_join(., data_tibble, by = c('dfs'))
 
-sensibility_all <- cross3(1:4, 1:3, 1:3) %>% 
-  invoke_map("paste", .)
-
-
-sensibility_all <- cross3(list_df, lists_bws_optimal , vars) %>% 
-  invoke_map("rd_sensibility", ., start = 1,  end = 15, step = 0.5)
+###############################################################################
+###################### SENSIBILITY TESTS TO ALL AREAS  ########################
+###############################################################################
 
 
-saveRDS(sensibility_all, 'sensibility_all.rds')
+if('sensibility_all.rds' %in% list.files()){
+  print(paste0('Sensibility tests already calculated and stored in', getwd()))
+  sensibility_all <- readRDS('sensibility_all.rds')
+} else {
+  sensibility_all <- cross3(list_df, lists_bws_optimal, vars) %>% 
+    invoke_map("rd_sensibility", ., start = 1,  end = 15, step = 0.5)
+  
+  saveRDS(sensibility_all, 'sensibility_all.rds')
+}
+ 
+###############################################################################
+############################ SENSIBILITY TESTS TO DF  ########################
+###############################################################################
+
+# Get list with bw's
+
+
+
+sensibility_all_df <- sensibility_all %>%
+  unlist(recursive=F) %>% 
+  unlist(recursive = F) %>%
+  lapply(extract_values) %>%
+  
+
+test <- cbind(df_names, sensibility_all_df)
 
