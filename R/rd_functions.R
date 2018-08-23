@@ -216,38 +216,49 @@ rd_placebos <- function(df,
 ##  to validate our results (robustness)                                     ##  
 ###############################################################################
 
-rd_sensibility <- function(df, 
-                           bws,
-                           var_dep,
-                           start, 
-                           end, 
+rd_sensibility <- function(data, 
+                           optimal_bw,
+                           vars,
+                           dfs,
+                           start = 1, 
+                           end = 15, 
                            step=0.5, ...){
 
-  print(var_dep)
+  print(vars)
   
   # Create bw sensibility lists
-  bws_list <- lapply(bws, function(x){
-    c(seq(start, end, by = step), x) %>%
+  bws_list <- c(seq(start, end, by = step), optimal_bw) %>%
       .[sort.list(.)]
+  
+  # Create range of bws for each optimal bw passed to the function 
+  rd_list_bws <- lapply(bws_list, function(x){
+    # Where are we? (print bw and var_dep)
+    print(x)
+    print(vars)
+    
+    # Estimate rdestimate for each of the bws in the bw range 
+    rd_object <- rdrobust(
+      y = data[, vars],
+      x = data$dist_disc,
+      covs = cbind(data$altura_tile_30arc, data$slope, data$roughness, data$prec, 
+                   data$sq_1km.1, data$treecover_agg),
+      all = T,
+      h = x,
+      vce = 'hc1',
+      c = 0)
+    
+    # Transform and store object into df
+    rd_object_df <- extract_values(rd_object)
+    return(rd_object_df)
   })
   
-  results <- lapply(bws_list, function(x){
-    lapply(x, function(bw_vector){
-      print(bw_vector)
-      print(var_dep)
-      rdrobust(
-        y = df[, var_dep],
-        x = df$dist_disc,
-        covs = cbind(df$altura_tile_30arc, df$slope, df$roughness, df$prec, 
-                     df$sq_1km.1, df$treecover_agg),
-        all = T,
-        h = bw_vector,
-        vce = 'hc1',
-        c = 0)
-    })
-  })
+  results_df <- rd_list_bws %>%
+    ldply() %>%
+    mutate(var_dep = vars,
+           area = dfs)
   
-  return(results)
+  return(results_df)
+  
 }
 
 
