@@ -105,8 +105,10 @@ extract_values <- function(x, round = FALSE, digits = NULL){
   
   # Additional stats
   z_stat = -qnorm(abs((1 - (x$level/100))/2))
-  c_int_l = (x$Estimate[, "tau.bc"] - x$Estimate[, "se.rb"]) * z_stat
-  c_int_r = (x$Estimate[, "tau.bc"] + x$Estimate[, "se.rb"]) * z_stat
+  c_int_l = x$Estimate[, "tau.bc"] - x$Estimate[, "se.rb"] * z_stat
+  c_int_r = x$Estimate[, "tau.bc"] + x$Estimate[, "se.rb"] * z_stat
+  c_int_l_r = x$ci['Robust', 'CI Lower']
+  c_int_r_r = x$ci['Robust', 'CI Upper']
   
   if(is_false(round)){
     # Create a df to start the table
@@ -119,6 +121,8 @@ extract_values <- function(x, round = FALSE, digits = NULL){
       n = n_eff,
       ci_l = c_int_l,
       ci_r = c_int_r,
+      ci_l_r = c_int_l_r,
+      ci_r_r = c_int_r_r,
       bw
     )
   } else {

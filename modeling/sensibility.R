@@ -94,9 +94,7 @@ if('sensibility_all.rds' %in% list.files()){
 ###############################################################################
 
 sensibility_all_df <- sensibility_all %>%
-  ldply() %>%
-  mutate(sanity_coef = ifelse(coef < ci_r & coef > ci_l, TRUE, FALSE),
-         new_coef = ifelse(sanity_coef == F, (ci_l + ci_r) / 2, coef))
+  ldply()
 
 sensibility_list_vars <- split(sensibility_all_df, sensibility_all_df$var_dep) 
 
@@ -104,9 +102,9 @@ sensibility_list_vars <- split(sensibility_all_df, sensibility_all_df$var_dep)
 plts <- lapply(sensibility_list_vars, function(x){
   g <- ggplot(x, aes(x = bw , y = coef))
   g <- g + geom_line(size = 1)
-  g <- g + geom_ribbon(aes(ymin = ci_l, ymax = ci_r), alpha = 0.2)
+  g <- g + geom_ribbon(aes(ymin = ci_l_r , ymax = ci_r_r), alpha = 0.2)
   g <- g + facet_wrap(~area, ncol = 1, scales = 'free')
-  g <- g + geom_vline(xintercept = 0, linetype = 2) 
+  # g <- g + geom_vline(xintercept = 0, linetype = 2) 
   g <- g + geom_hline(yintercept = 0, linetype = 2, colour = "grey")
   g <- g + labs(x = 'Cut off (km)', y = 'Coefficient')
   g <- g + theme_bw()

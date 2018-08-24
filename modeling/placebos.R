@@ -96,7 +96,7 @@ plts <- lapply(df_list_vars, function(x){
   g <- g + geom_hline(yintercept = 0, linetype = 2, colour = "grey")
   g <- g + labs(x = 'Cut offs (km)', y = 'Coefficient')
   g <- g + theme_bw()
-  g
+  g 
 })
 
 paths <- (str_c('RD/Graphs/RD_placebos_new_', names(plts) ,'.pdf'))
